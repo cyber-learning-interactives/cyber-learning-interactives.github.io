@@ -152,14 +152,14 @@ body:hover .glow{opacity:1}
 <div class="wrap">
 
   <section class="hero">
-    <div class="hero-label"><span class="dot"></span> Crypto &amp; Data Protection Course</div>
+    <div class="hero-label"><span class="dot"></span> Interactive Learning</div>
     <h1>
       <span class="line">Навчальні</span>
       <span class="line accent">інтерактиви</span>
       <span class="line ghost">з кібербезпеки</span>
     </h1>
     
-    <div class="hero-stat"><div class="num" id="counter">14</div><div class="lbl">сценаріїв</div></div>
+    
   </section>
 
   <div class="divider"></div>
@@ -207,7 +207,7 @@ body:hover .glow{opacity:1}
 
   <footer class="ftr">
     <a href="https://github.com/cyber-learning-interactives" target="_blank">github.com/cyber-learning-interactives</a>
-    <div class="brand">Crypto &amp; Data Protection</div>
+    
   </footer>
 
 </div>
@@ -269,10 +269,7 @@ const glow=document.getElementById('glow');
 document.addEventListener('mousemove',e=>{glow.style.left=e.clientX+'px';glow.style.top=e.clientY+'px'});
 
 // === COUNTER ANIMATION ===
-const counter=document.getElementById('counter');
-let cv=0;const target=14;
-function animC(){if(cv<target){cv++;counter.textContent=cv;setTimeout(animC,60)}};
-setTimeout(animC,800);
+
 </script>
 </body>
 </html>
