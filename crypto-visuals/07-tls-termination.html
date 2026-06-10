@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TLS Termination Explorer — Де дані «оголюються»</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:720px;margin-bottom:24px}
+.header h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.5}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#ede9fe;color:#7c5cbf;margin-bottom:10px}
+
+.wrap{width:100%;max-width:860px}
+
+/* Toggles */
+.toggles{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.toggle{display:flex;align-items:center;gap:8px;padding:10px 16px;border:1.5px solid #e5e7eb;border-radius:10px;background:#fff;cursor:pointer;transition:all .2s;font-size:0.78rem;font-weight:500}
+.toggle:hover{border-color:#7c5cbf}
+.toggle input{width:16px;height:16px;cursor:pointer}
+.toggle.on{border-color:#10b981;background:#ecfdf5}
+.toggle.off{border-color:#e5e7eb;background:#fff}
+
+/* Pipeline */
+.pipeline{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:20px;overflow-x:auto}
+.pipe-row{display:flex;align-items:stretch;gap:0;min-width:700px}
+.segment{flex:1;display:flex;flex-direction:column;align-items:center;padding:12px 8px;position:relative;min-width:120px}
+.segment .seg-top{font-size:0.62rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;text-align:center;height:28px;display:flex;align-items:center}
+.segment .seg-box{width:100%;padding:14px 10px;border-radius:10px;text-align:center;border:1.5px solid;transition:all .4s;min-height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.segment .seg-icon{font-size:1.3rem;margin-bottom:2px}
+.segment .seg-label{font-size:0.72rem;font-weight:600}
+.segment .seg-detail{font-size:0.6rem;margin-top:2px}
+
+/* Connectors between segments */
+.seg-conn{display:flex;align-items:center;justify-content:center;width:40px;flex-shrink:0;position:relative}
+.seg-conn .wire{width:100%;height:4px;border-radius:2px;transition:background .4s}
+.seg-conn .wire-label{position:absolute;top:-14px;font-size:0.55rem;font-weight:600;white-space:nowrap}
+
+/* Data state indicator */
+.data-state{margin-top:6px;font-size:0.6rem;font-weight:600;padding:2px 8px;border-radius:6px}
+.ds-enc{background:#d1fae5;color:#065f46}
+.ds-plain{background:#fef2f2;color:#dc2626}
+
+/* Legend */
+.legend{display:flex;gap:16px;margin-top:16px;justify-content:center;flex-wrap:wrap}
+.leg{display:flex;align-items:center;gap:4px;font-size:0.7rem;color:#6b7280}
+.leg .ld{width:24px;height:4px;border-radius:2px}
+
+/* Explain */
+.explain{margin-top:16px;padding:14px 16px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:10px;font-size:0.78rem;color:#4b5563;line-height:1.6}
+.explain strong{color:#1a1a2e}
+.explain .warn{color:#dc2626;font-weight:600}
+.explain .ok{color:#059669;font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 9 · РОЗДІЛ 4.2</div>
+  <h1>TLS Termination Explorer</h1>
+  <p>TLS захищає канал, але не дані після розшифрування. Увімкніть перемикачі, щоб побачити, де у системі дані «оголюються».</p>
+</div>
+
+<div class="wrap">
+  <div class="toggles">
+    <label class="toggle on" id="t-reenc">
+      <input type="checkbox" checked onchange="update()"> Re-encryption (внутрішній TLS)
+    </label>
+    <label class="toggle off" id="t-mtls">
+      <input type="checkbox" onchange="update()"> mTLS між сервісами
+    </label>
+  </div>
+
+  <div class="pipeline" id="pipeline"></div>
+
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#10b981"></div> Зашифрований канал</div>
+    <div class="leg"><div class="ld" style="background:#ef4444"></div> Відкритий канал</div>
+    <div class="leg"><div class="ld" style="background:#f59e0b"></div> TLS без автентифікації клієнта</div>
+  </div>
+
+  <div class="explain" id="explain"></div>
+</div>
+
+<script>
+function getState() {
+  const reenc = document.querySelector('#t-reenc input').checked;
+  const mtls = document.querySelector('#t-mtls input').checked;
+  document.getElementById('t-reenc').className = 'toggle ' + (reenc ? 'on' : 'off');
+  document.getElementById('t-mtls').className = 'toggle ' + (mtls ? 'on' : 'off');
+  return { reenc, mtls };
+}
+
+function seg(icon, label, detail, boxBg, boxBorder, dataState) {
+  const dsClass = dataState === 'enc' ? 'ds-enc' : 'ds-plain';
+  const dsLabel = dataState === 'enc' ? '🔒 Зашифровано' : '⚠ Відкритий текст';
+  return `<div class="segment">
+    <div class="seg-top" style="color:${boxBorder}">${detail}</div>
+    <div class="seg-box" style="background:${boxBg};border-color:${boxBorder}">
+      <div class="seg-icon">${icon}</div>
+      <div class="seg-label">${label}</div>
+    </div>
+    <div class="data-state ${dsClass}">${dsLabel}</div>
+  </div>`;
+}
+
+function conn(encrypted, label = '', mtls = false) {
+  const color = encrypted ? (mtls ? '#10b981' : '#f59e0b') : '#ef4444';
+  const lbl = label ? `<div class="wire-label" style="color:${color}">${label}</div>` : '';
+  return `<div class="seg-conn">${lbl}<div class="wire" style="background:${color}"></div></div>`;
+}
+
+function update() {
+  const { reenc, mtls } = getState();
+
+  // Determine states
+  const internalEnc = reenc;
+  const dbEnc = reenc;
+
+  let html = '<div class="pipe-row">';
+
+  // Browser
+  html += seg('💻', 'Браузер', 'Клієнт', '#ede9fe', '#7c5cbf', 'enc');
+  html += conn(true, 'TLS 1.3');
+
+  // Load Balancer (termination point!)
+  html += seg('⚡', 'Load Balancer', '⚠ TLS Termination', '#fef3c7', '#d97706', 'enc');
+
+  // Internal network
+  html += conn(internalEnc, internalEnc ? (mtls ? 'mTLS' : 'TLS') : '❌ plain', mtls);
+
+  // API Service
+  html += seg('🖥️', 'API сервіс', 'HR AI backend', internalEnc ? '#ecfdf5' : '#fef2f2', internalEnc ? '#10b981' : '#ef4444', internalEnc ? 'enc' : 'plain');
+  html += conn(internalEnc, internalEnc ? (mtls ? 'mTLS' : 'TLS') : '❌ plain', mtls);
+
+  // Database
+  html += seg('🗃️', 'PostgreSQL', 'Персональні дані', dbEnc ? '#ecfdf5' : '#fef2f2', dbEnc ? '#10b981' : '#ef4444', dbEnc ? 'enc' : 'plain');
+
+  html += '</div>';
+  document.getElementById('pipeline').innerHTML = html;
+
+  // Explanation
+  let exp = '';
+  if (!reenc && !mtls) {
+    exp = `<span class="warn">Критична прогалина:</span> після TLS termination на load balancer весь внутрішній трафік передається у відкритому вигляді. SQL-запити до PostgreSQL з персональними даними кандидатів — без шифрування. Будь-який скомпрометований вузол у внутрішній мережі може перехопити дані. Це саме той розрив, який ми фіксували в темі 2.`;
+  } else if (reenc && !mtls) {
+    exp = `<strong>Покращення:</strong> re-encryption забезпечує TLS між внутрішніми компонентами. Дані зашифровані на кожному відрізку. <span class="warn">Але:</span> сервер перевіряє свій сертифікат, а клієнт (API-сервіс) — ні. Без mTLS неавторизований сервіс може з'єднатися з базою даних, якщо має мережевий доступ.`;
+  } else if (reenc && mtls) {
+    exp = `<span class="ok">Повний захист каналів:</span> mTLS забезпечує взаємну автентифікацію — і клієнт, і сервер підтверджують свою ідентичність сертифікатом. У HR AI це означає: inference-сервіс доводить, що він — це він, перш ніж PostgreSQL поверне дані кандидатів. <strong>Важливо:</strong> навіть з mTLS потрібен контроль на інших рівнях — шифрування at rest, IAM, маскування в логах.`;
+  } else {
+    exp = `<strong>mTLS увімкнено</strong> — взаємна автентифікація працює. Re-encryption вимкнено, але mTLS забезпечує і шифрування, і автентифікацію одночасно.`;
+  }
+  document.getElementById('explain').innerHTML = exp;
+}
+
+update();
+</script>
+</body>
+</html>
