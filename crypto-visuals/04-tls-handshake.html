@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TLS 1.3 Handshake — Як усе працює разом</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:720px;margin-bottom:24px}
+.header h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.5}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#ede9fe;color:#7c5cbf;margin-bottom:10px}
+
+.wrap{width:100%;max-width:820px}
+
+/* Timeline controls */
+.timeline{display:flex;align-items:center;gap:8px;margin-bottom:20px}
+.step-btn{width:40px;height:40px;border-radius:50%;border:2px solid #e5e7eb;background:#fff;font-size:0.82rem;font-weight:700;cursor:pointer;transition:all .2s;font-family:inherit;display:flex;align-items:center;justify-content:center}
+.step-btn:hover{border-color:#7c5cbf}
+.step-btn.done{background:#ede9fe;border-color:#c4b5fd;color:#5b21b6}
+.step-btn.on{background:#7c5cbf;border-color:#7c5cbf;color:#fff;transform:scale(1.15)}
+.step-line{flex:1;height:2px;background:#e5e7eb;position:relative}
+.step-line .fill{position:absolute;top:0;left:0;height:100%;background:#7c5cbf;transition:width .4s}
+.nav-row{display:flex;justify-content:space-between;margin-top:16px}
+.nav-btn{padding:8px 20px;border:1.5px solid #e5e7eb;border-radius:10px;background:#fff;font-family:inherit;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all .2s}
+.nav-btn:hover{border-color:#7c5cbf;background:#faf5ff}
+.nav-btn:disabled{opacity:0.3;cursor:default}
+.nav-btn.primary{background:#7c5cbf;color:#fff;border-color:#7c5cbf}
+.nav-btn.primary:hover{background:#6d4daf}
+
+/* Scene layout: two columns + messages between */
+.scene{background:#fff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden}
+.scene-header{padding:16px 20px;background:#f9fafb;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:10px}
+.scene-header h3{font-size:0.9rem;font-weight:700;flex:1}
+.scene-header .prim-tag{font-size:0.62rem;font-weight:600;padding:3px 10px;border-radius:8px;color:#fff}
+
+/* Columns */
+.cols{display:flex;min-height:260px}
+.col{flex:1;padding:20px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.col:first-child{border-right:1px dashed #e5e7eb}
+.col-label{font-size:0.7rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em}
+.col-icon{font-size:2rem;margin:4px 0}
+
+/* Message arrows */
+.msgs{display:flex;flex-direction:column;gap:8px;padding:8px 0}
+.msg{display:flex;align-items:center;gap:6px;font-size:0.72rem;padding:6px 12px;border-radius:8px;background:#f9fafb;border:1px solid #e5e7eb;animation:fadeIn .4s}
+.msg code{font-family:'JetBrains Mono',monospace;font-size:0.68rem;background:#ede9fe;padding:1px 6px;border-radius:4px;color:#5b21b6}
+.msg .dir{font-size:1rem;flex-shrink:0}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* Crypto badge */
+.crypto-used{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.cbadge{font-size:0.65rem;font-weight:600;padding:3px 10px;border-radius:8px;display:flex;align-items:center;gap:4px}
+
+/* Explain */
+.explain{padding:16px 20px;border-top:1px solid #e5e7eb;font-size:0.78rem;color:#4b5563;line-height:1.6;background:#fafbfc}
+.explain strong{color:#1a1a2e}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 5 · РОЗДІЛ 8</div>
+  <h1>TLS 1.3 Handshake</h1>
+  <p>Як асиметрична криптографія, хешування та AES працюють разом у одному з'єднанні. Натискайте кроки або кнопки «Далі» для покрокового проходження.</p>
+</div>
+
+<div class="wrap">
+  <!-- Timeline -->
+  <div class="timeline" id="timeline"></div>
+
+  <!-- Scene -->
+  <div class="scene" id="scene"></div>
+
+  <!-- Nav -->
+  <div class="nav-row">
+    <button class="nav-btn" id="prev-btn" onclick="go(cur-1)">← Назад</button>
+    <button class="nav-btn primary" id="next-btn" onclick="go(cur+1)">Далі →</button>
+  </div>
+</div>
+
+<script>
+const steps = [
+  {
+    title: 'ClientHello',
+    tagBg: '#f72585', tagLabel: 'Крок 1',
+    client: { doing: 'Генерує ефемерний ключ ECDHE', detail: 'Випадкова пара (private, public) на Curve25519' },
+    server: { doing: 'Очікує...', detail: '' },
+    msgs: [
+      { dir: '→', text: 'ClientHello', detail: 'Підтримувані параметри + публічна частина ECDHE' },
+    ],
+    crypto: [
+      { label: 'ECDHE (X25519)', bg: '#fce7f3', color: '#9d174d' },
+      { label: 'Випадкові значення', bg: '#f3f4f6', color: '#6b7280' },
+    ],
+    explain: `<strong>Що відбувається:</strong> клієнт одразу надсилає свої параметри для обміну ключами разом із ClientHello. У TLS 1.2 це вимагало додаткового кроку. У TLS 1.3 handshake коротший — менше точок для атаки.`,
+  },
+  {
+    title: 'ServerHello + Certificate',
+    tagBg: '#7c5cbf', tagLabel: 'Крок 2',
+    client: { doing: 'Очікує відповідь...', detail: '' },
+    server: { doing: 'Генерує свій ефемерний ключ ECDHE', detail: 'Обирає параметри, готує сертифікат' },
+    msgs: [
+      { dir: '←', text: 'ServerHello', detail: 'Обрані параметри + публічна частина ECDHE сервера' },
+      { dir: '←', text: 'Certificate', detail: 'X.509 сертифікат (ланцюг довіри → тема 6)' },
+      { dir: '←', text: 'CertificateVerify', detail: 'Підпис handshake приватним ключем сервера' },
+    ],
+    crypto: [
+      { label: 'ECDHE (X25519)', bg: '#fce7f3', color: '#9d174d' },
+      { label: 'X.509 (PKI)', bg: '#dbeafe', color: '#1e40af' },
+      { label: 'ECDSA / EdDSA', bg: '#d1fae5', color: '#065f46' },
+    ],
+    explain: `<strong>Автентифікація:</strong> сертифікат підтверджує ідентичність сервера через ланцюг довіри (Root CA → Intermediate → Server). Підпис CertificateVerify доводить, що сервер володіє приватним ключем. Без цього — MITM-атака тривіальна.`,
+  },
+  {
+    title: 'Спільний секрет',
+    tagBg: '#14b8a6', tagLabel: 'Крок 3',
+    client: { doing: 'Обчислює shared secret', detail: 'Свій private + server public → secret' },
+    server: { doing: 'Обчислює shared secret', detail: 'Свій private + client public → secret' },
+    msgs: [
+      { dir: '⟷', text: 'Однаковий результат', detail: 'Обидві сторони отримують ідентичний секрет, не передаючи його' },
+    ],
+    crypto: [
+      { label: 'ECDHE — секрет узгоджено', bg: '#fce7f3', color: '#9d174d' },
+      { label: 'HKDF — деривація ключів', bg: '#fef3c7', color: '#92400e' },
+    ],
+    explain: `<strong>Forward Secrecy:</strong> ефемерні ключі генеруються для кожної сесії і видаляються після неї. Навіть якщо довгостроковий ключ сервера буде скомпрометований пізніше, записаний трафік минулих сесій розшифрувати неможливо — ефемерні ключі більше не існують.`,
+  },
+  {
+    title: 'Перевірка сертифіката',
+    tagBg: '#3b82f6', tagLabel: 'Крок 4',
+    client: { doing: 'Перевіряє сертифікат сервера', detail: 'Ланцюг довіри, термін дії, відкликання, ім\'я' },
+    server: { doing: 'Handshake завершено зі сторони сервера', detail: '' },
+    msgs: [
+      { dir: '→', text: 'Finished', detail: 'Клієнт підтверджує завершення handshake' },
+    ],
+    crypto: [
+      { label: 'SHA-256 (hash transcript)', bg: '#f3e8ff', color: '#6b21a8' },
+      { label: 'Перевірка підпису CA', bg: '#d1fae5', color: '#065f46' },
+    ],
+    explain: `<strong>Критичний момент:</strong> клієнт перевіряє не лише наявність сертифіката, а весь ланцюг довіри, термін дії, статус відкликання (OCSP/CRL) і відповідність імені сервера. <code>verify=false</code> у коді — це повне вимкнення цієї перевірки.`,
+  },
+  {
+    title: 'Захищений канал',
+    tagBg: '#10b981', tagLabel: 'Крок 5',
+    client: { doing: 'Шифрує трафік session keys', detail: 'AES-256-GCM або ChaCha20-Poly1305' },
+    server: { doing: 'Шифрує трафік session keys', detail: 'Той самий симетричний ключ' },
+    msgs: [
+      { dir: '⟷', text: 'Application Data', detail: '🔒 Весь подальший трафік зашифрований і автентифікований' },
+    ],
+    crypto: [
+      { label: 'AES-256-GCM (AEAD)', bg: '#d1fae5', color: '#065f46' },
+      { label: 'Session keys з HKDF', bg: '#fef3c7', color: '#92400e' },
+    ],
+    explain: `<strong>Розподіл ролей:</strong> асиметрична криптографія встановила довіру і секрет (кроки 1–4). Симетрична криптографія шифрує дані (крок 5). Хешування перевіряє цілісність на кожному кроці. Жоден із цих механізмів не працює сам по собі — вони доповнюють один одного.`,
+  },
+];
+
+let cur = 0;
+
+function renderTimeline() {
+  let html = '';
+  steps.forEach((s, i) => {
+    const cls = i < cur ? 'done' : i === cur ? 'on' : '';
+    html += `<button class="step-btn ${cls}" onclick="go(${i})" aria-label="Крок ${i+1}">${i+1}</button>`;
+    if (i < steps.length - 1) {
+      const pct = i < cur ? 100 : 0;
+      html += `<div class="step-line"><div class="fill" style="width:${pct}%"></div></div>`;
+    }
+  });
+  document.getElementById('timeline').innerHTML = html;
+}
+
+function renderScene() {
+  const s = steps[cur];
+  let html = '';
+  
+  html += `<div class="scene-header">
+    <span class="prim-tag" style="background:${s.tagBg}">${s.tagLabel}</span>
+    <h3>${s.title}</h3>
+  </div>`;
+
+  html += `<div class="cols">`;
+  // Client
+  html += `<div class="col">
+    <div class="col-label">Клієнт (браузер)</div>
+    <div class="col-icon">💻</div>
+    <div style="font-size:0.8rem;font-weight:600;color:#1a1a2e;text-align:center">${s.client.doing}</div>
+    <div style="font-size:0.7rem;color:#6b7280;text-align:center">${s.client.detail}</div>
+  </div>`;
+  // Server
+  html += `<div class="col">
+    <div class="col-label">Сервер (API)</div>
+    <div class="col-icon">🖥️</div>
+    <div style="font-size:0.8rem;font-weight:600;color:#1a1a2e;text-align:center">${s.server.doing}</div>
+    <div style="font-size:0.7rem;color:#6b7280;text-align:center">${s.server.detail}</div>
+  </div>`;
+  html += `</div>`;
+
+  // Messages
+  html += `<div style="padding:8px 20px">`;
+  html += `<div class="msgs">`;
+  s.msgs.forEach(m => {
+    html += `<div class="msg"><span class="dir">${m.dir}</span><code>${m.text}</code><span style="color:#6b7280">${m.detail}</span></div>`;
+  });
+  html += `</div>`;
+  // Crypto used
+  html += `<div class="crypto-used">`;
+  s.crypto.forEach(c => {
+    html += `<span class="cbadge" style="background:${c.bg};color:${c.color}">🔑 ${c.label}</span>`;
+  });
+  html += `</div></div>`;
+
+  // Explain
+  html += `<div class="explain">${s.explain}</div>`;
+
+  document.getElementById('scene').innerHTML = html;
+}
+
+function go(n) {
+  if (n < 0 || n >= steps.length) return;
+  cur = n;
+  renderTimeline();
+  renderScene();
+  document.getElementById('prev-btn').disabled = cur === 0;
+  const nb = document.getElementById('next-btn');
+  if (cur === steps.length - 1) { nb.textContent = '✓ Готово'; nb.disabled = true; }
+  else { nb.textContent = 'Далі →'; nb.disabled = false; }
+}
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') go(cur + 1);
+  if (e.key === 'ArrowLeft') go(cur - 1);
+});
+
+go(0);
+</script>
+</body>
+</html>
