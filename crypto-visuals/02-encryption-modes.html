@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Encryption Modes Simulator — ECB / CBC / CTR / GCM</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:720px;margin-bottom:24px}
+.header h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.5}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#ede9fe;color:#7c5cbf;margin-bottom:10px;letter-spacing:0.03em}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:20px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:4px;max-width:560px;width:100%}
+.tab{flex:1;padding:10px 8px;border:none;background:none;border-radius:9px;font-family:inherit;font-size:0.82rem;font-weight:600;cursor:pointer;color:#6b7280;transition:all .2s}
+.tab:hover{color:#1a1a2e;background:#f9fafb}
+.tab.on{color:#fff}
+.tab[data-mode="ecb"].on{background:#ef4444}
+.tab[data-mode="cbc"].on{background:#f59e0b}
+.tab[data-mode="ctr"].on{background:#3b82f6}
+.tab[data-mode="gcm"].on{background:#10b981}
+
+/* Main area */
+.main{width:100%;max-width:860px;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:28px 24px;margin-bottom:16px;min-height:420px}
+
+/* Properties bar */
+.props{display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.prop{display:flex;align-items:center;gap:6px;font-size:0.75rem;font-weight:500}
+.prop .dot{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:#fff;font-weight:700}
+.dot.yes{background:#10b981}
+.dot.no{background:#d1d5db}
+.status-tag{font-size:0.68rem;font-weight:600;padding:3px 10px;border-radius:10px;margin-left:auto}
+
+/* Block diagram */
+.diagram{position:relative;overflow-x:auto;padding:8px 0 12px}
+
+/* Block rows */
+.block-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;min-height:48px}
+.block-row .row-label{width:70px;font-size:0.68rem;font-weight:600;color:#9ca3af;text-align:right;flex-shrink:0}
+
+/* Individual blocks */
+.block{width:100px;height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:0.75rem;font-weight:500;border:1.5px solid;flex-shrink:0;position:relative;transition:all .4s}
+
+.b-plain{background:#ede9fe;border-color:#c4b5fd;color:#5b21b6}
+.b-cipher{background:#e0e7ff;border-color:#a5b4fc;color:#3730a3}
+.b-match{outline:3px solid #ef4444;outline-offset:2px;animation:pulse-match 1.5s infinite}
+@keyframes pulse-match{0%,100%{outline-color:#ef4444}50%{outline-color:#fca5a5}}
+
+.b-key{background:#fef3c7;border-color:#fcd34d;color:#92400e;width:80px;height:36px;font-size:0.65rem}
+.b-iv{background:#d1fae5;border-color:#6ee7b7;color:#065f46;width:72px;height:36px;font-size:0.65rem}
+.b-nonce{background:#cffafe;border-color:#67e8f9;color:#155e75;width:72px;height:36px;font-size:0.65rem}
+.b-tag{background:#fce7f3;border-color:#f9a8d4;color:#9d174d;width:80px;height:36px;font-size:0.65rem;border-style:dashed}
+
+/* Operation nodes */
+.op{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:700;flex-shrink:0}
+.op-xor{background:#f3f4f6;border:1.5px solid #d1d5db;color:#6b7280}
+.op-enc{background:#7c5cbf;color:#fff;font-size:0.55rem;font-weight:700}
+.op-ghash{background:#0d9488;color:#fff;font-size:0.5rem;font-weight:700}
+
+/* Arrow */
+.arrow{color:#d1d5db;font-size:0.9rem;flex-shrink:0}
+
+/* Nonce reuse toggle (GCM only) */
+.toggle-row{display:flex;align-items:center;gap:10px;margin-top:16px;padding:12px 16px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px}
+.toggle-row.safe{background:#f0fdf4;border-color:#bbf7d0}
+.toggle-row label{font-size:0.78rem;font-weight:500;color:#1a1a2e;cursor:pointer;display:flex;align-items:center;gap:8px}
+.toggle-row input[type=checkbox]{width:16px;height:16px;accent-color:#ef4444;cursor:pointer}
+.toggle-msg{font-size:0.75rem;line-height:1.5;margin-top:6px}
+.toggle-msg.danger{color:#dc2626;font-weight:500}
+.toggle-msg.ok{color:#059669}
+
+/* Explanation */
+.explain{margin-top:16px;padding:14px 16px;background:#f9fafb;border-radius:10px;border:1px solid #f3f4f6;font-size:0.8rem;color:#4b5563;line-height:1.6}
+.explain strong{color:#1a1a2e}
+
+.hint{text-align:center;font-size:0.75rem;color:#9ca3af;margin-top:8px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 4 · РОЗДІЛ 4</div>
+  <h1>Режими шифрування: ECB → CBC → CTR → GCM</h1>
+  <p>Один і той самий алгоритм (AES) може бути як надійним, так і вразливим — залежно від режиму. Перемикайте вкладки, щоб побачити різницю.</p>
+</div>
+
+<div class="tabs" role="tablist">
+  <button class="tab on" data-mode="ecb" role="tab" aria-selected="true" onclick="setMode('ecb')">ECB</button>
+  <button class="tab" data-mode="cbc" role="tab" aria-selected="false" onclick="setMode('cbc')">CBC</button>
+  <button class="tab" data-mode="ctr" role="tab" aria-selected="false" onclick="setMode('ctr')">CTR</button>
+  <button class="tab" data-mode="gcm" role="tab" aria-selected="false" onclick="setMode('gcm')">GCM</button>
+</div>
+
+<div class="main" id="main"></div>
+
+<div class="hint">Зверніть увагу: P₁ = P₃ (однакові блоки). Як це впливає на ciphertext?</div>
+
+<script>
+const P = ['P₁ = A7F3', 'P₂ = 9B1E', 'P₃ = A7F3', 'P₄ = D4C0'];
+const C_ECB = ['C₁ = 5E2D', 'C₂ = 8A91', 'C₃ = 5E2D', 'C₄ = F1B7'];
+const C_OTHER = ['C₁ = 5E2D', 'C₂ = 3F7A', 'C₃ = B1C8', 'C₄ = 92E5'];
+
+let currentMode = 'ecb';
+let nonceReused = false;
+
+function setMode(mode) {
+  currentMode = mode;
+  nonceReused = false;
+  document.querySelectorAll('.tab').forEach(t => {
+    const on = t.dataset.mode === mode;
+    t.classList.toggle('on', on);
+    t.setAttribute('aria-selected', on);
+  });
+  render();
+}
+
+function blk(text, cls, extra = '') {
+  return `<div class="block ${cls}" ${extra}>${text}</div>`;
+}
+function op(text, cls) {
+  return `<div class="op ${cls}">${text}</div>`;
+}
+function arr() {
+  return `<span class="arrow">→</span>`;
+}
+
+function propDot(yes) {
+  return `<div class="dot ${yes ? 'yes' : 'no'}">${yes ? '✓' : '—'}</div>`;
+}
+
+function render() {
+  const m = currentMode;
+  let html = '';
+
+  // Properties
+  const modes = {
+    ecb: { conf: false, integ: false, par: true, status: 'Небезпечний', statusBg: '#fef2f2', statusColor: '#dc2626' },
+    cbc: { conf: true, integ: false, par: false, status: 'Legacy', statusBg: '#fffbeb', statusColor: '#d97706' },
+    ctr: { conf: true, integ: false, par: true, status: 'Потребує MAC', statusBg: '#eff6ff', statusColor: '#2563eb' },
+    gcm: { conf: true, integ: true, par: true, status: 'Рекомендований', statusBg: '#ecfdf5', statusColor: '#059669' },
+  };
+  const p = modes[m];
+
+  html += `<div class="props">
+    <div class="prop">${propDot(p.conf)} Конфіденційність</div>
+    <div class="prop">${propDot(p.integ)} Цілісність</div>
+    <div class="prop">${propDot(p.par)} Паралелізм</div>
+    <div class="status-tag" style="background:${p.statusBg};color:${p.statusColor}">${p.status}</div>
+  </div>`;
+
+  html += '<div class="diagram">';
+
+  if (m === 'ecb') {
+    // Plaintext row
+    html += `<div class="block-row"><div class="row-label">Plaintext</div>`;
+    P.forEach((t, i) => {
+      html += blk(t, 'b-plain' + ((i === 0 || i === 2) ? ' b-match' : ''));
+      if (i < 3) html += `<span style="width:52px"></span>`;
+    });
+    html += `</div>`;
+
+    // Encryption row
+    html += `<div class="block-row"><div class="row-label">Шифрування</div>`;
+    for (let i = 0; i < 4; i++) {
+      html += `<div style="width:100px;display:flex;flex-direction:column;align-items:center;gap:2px">
+        <span class="arrow" style="transform:rotate(90deg)">→</span>
+        ${op('E(K)', 'op-enc')}
+        <span class="arrow" style="transform:rotate(90deg)">→</span>
+      </div>`;
+      if (i < 3) html += `<span style="width:52px"></span>`;
+    }
+    html += `</div>`;
+
+    // Ciphertext row
+    html += `<div class="block-row"><div class="row-label">Ciphertext</div>`;
+    C_ECB.forEach((t, i) => {
+      html += blk(t, 'b-cipher' + ((i === 0 || i === 2) ? ' b-match' : ''));
+      if (i < 3) html += `<span style="width:52px"></span>`;
+    });
+    html += `</div>`;
+
+    html += `</div>`;
+    html += `<div class="explain"><strong>Проблема:</strong> однакові блоки plaintext (P₁ і P₃) дають однаковий ciphertext (C₁ і C₃ — виділені червоним). Структура даних не зникає, а лише змінює вигляд. Тому ECB не використовується для реальних даних і його наявність у системі — вразливість.</div>`;
+  }
+
+  else if (m === 'cbc') {
+    // Row 1: P blocks with XOR and chaining
+    html += `<div class="block-row"><div class="row-label">Plaintext</div>`;
+    P.forEach((t, i) => { html += blk(t, 'b-plain'); if (i < 3) html += `<span style="width:20px"></span>`; });
+    html += `</div>`;
+
+    // Arrows + XOR + IV
+    html += `<div class="block-row"><div class="row-label"></div>`;
+    for (let i = 0; i < 4; i++) {
+      html += `<div style="width:100px;display:flex;flex-direction:column;align-items:center;gap:1px">
+        <span class="arrow" style="transform:rotate(90deg);font-size:0.7rem">↓</span>
+        <div style="display:flex;align-items:center;gap:4px">
+          ${op('⊕', 'op-xor')}
+          <span style="font-size:0.6rem;color:#9ca3af">← ${i === 0 ? 'IV' : 'C' + i}</span>
+        </div>
+        <span class="arrow" style="transform:rotate(90deg);font-size:0.7rem">↓</span>
+        ${op('E(K)', 'op-enc')}
+        <span class="arrow" style="transform:rotate(90deg);font-size:0.7rem">↓</span>
+      </div>`;
+      if (i < 3) html += `<span style="width:20px"></span>`;
+    }
+    html += `</div>`;
+
+    html += `<div class="block-row"><div class="row-label">Ciphertext</div>`;
+    C_OTHER.forEach((t, i) => { html += blk(t, 'b-cipher'); if (i < 3) html += `<span style="width:20px"></span>`; });
+    html += `</div>`;
+
+    html += `</div>`;
+    html += `<div class="explain"><strong>Покращення:</strong> кожен блок перед шифруванням XOR-ується з попереднім ciphertext (перший — з випадковим IV). Однакові P₁ і P₃ тепер дають різний ciphertext. <strong>Обмеження:</strong> послідовна обробка (без паралелізму), немає перевірки цілісності, вразливість до padding oracle attack.</div>`;
+  }
+
+  else if (m === 'ctr') {
+    html += `<div class="block-row"><div class="row-label">Counter</div>`;
+    for (let i = 0; i < 4; i++) {
+      html += blk(`Nonce+${i+1}`, 'b-nonce');
+      if (i < 3) html += `<span style="width:12px"></span>`;
+    }
+    html += `</div>`;
+
+    html += `<div class="block-row"><div class="row-label"></div>`;
+    for (let i = 0; i < 4; i++) {
+      html += `<div style="width:100px;display:flex;flex-direction:column;align-items:center;gap:1px">
+        <span class="arrow" style="transform:rotate(90deg);font-size:0.7rem">↓</span>
+        ${op('E(K)', 'op-enc')}
+        <span class="arrow" style="transform:rotate(90deg);font-size:0.7rem">↓</span>
+        ${op('⊕', 'op-xor')}
+        <span style="font-size:0.55rem;color:#9ca3af">← ${P[i].split(' = ')[0]}</span>
+      </div>`;
+      if (i < 3) html += `<span style="width:12px"></span>`;
+    }
+    html += `</div>`;
+
+    html += `<div class="block-row"><div class="row-label">Ciphertext</div>`;
+    C_OTHER.forEach((t, i) => { html += blk(t, 'b-cipher'); if (i < 3) html += `<span style="width:12px"></span>`; });
+    html += `</div>`;
+
+    html += `</div>`;
+    html += `<div class="explain"><strong>Інший підхід:</strong> шифруються значення лічильника, а результат XOR-ується з plaintext. Блоки обробляються незалежно (паралелізм). Можна дешифрувати будь-яку частину без обробки попередніх. <strong>Обмеження:</strong> немає перевірки цілісності — зміни в ciphertext призведуть до передбачуваних змін у plaintext.</div>`;
+  }
+
+  else if (m === 'gcm') {
+    html += `<div class="block-row"><div class="row-label">Counter</div>`;
+    for (let i = 0; i < 4; i++) {
+      html += blk(`Nonce+${i+1}`, 'b-nonce');
+      if (i < 3) html += `<span style="width:4px"></span>`;
+    }
+    html += `<span style="width:8px"></span>`;
+    html += blk('Auth Tag', 'b-tag');
+    html += `</div>`;
+
+    html += `<div class="block-row"><div class="row-label"></div>`;
+    for (let i = 0; i < 4; i++) {
+      html += `<div style="width:100px;display:flex;flex-direction:column;align-items:center;gap:1px">
+        <span style="font-size:0.5rem;color:#9ca3af">↓</span>
+        ${op('E(K)', 'op-enc')}
+        <span style="font-size:0.5rem;color:#9ca3af">↓ ⊕ P</span>
+      </div>`;
+      if (i < 3) html += `<span style="width:4px"></span>`;
+    }
+    html += `<span style="width:8px"></span>`;
+    html += `<div style="width:80px;display:flex;flex-direction:column;align-items:center;gap:1px">
+      <span style="font-size:0.5rem;color:#9ca3af">←</span>
+      ${op('GH', 'op-ghash')}
+      <span style="font-size:0.45rem;color:#6b7280">GHASH</span>
+    </div>`;
+    html += `</div>`;
+
+    const cGcm = nonceReused 
+      ? ['C₁ = 5E2D', 'C₂ = 3F7A', 'C₃ = ????', 'C₄ = ????']
+      : C_OTHER;
+
+    html += `<div class="block-row"><div class="row-label">Ciphertext</div>`;
+    cGcm.forEach((t, i) => {
+      const cls = nonceReused && i >= 2 ? 'b-cipher b-match' : 'b-cipher';
+      html += blk(t, cls);
+      if (i < 3) html += `<span style="width:4px"></span>`;
+    });
+    html += `<span style="width:8px"></span>`;
+    html += blk(nonceReused ? '⚠ INVALID' : '✓ Valid', nonceReused ? 'b-tag b-match' : 'b-tag');
+    html += `</div>`;
+
+    html += `</div>`;
+
+    // Nonce reuse toggle
+    html += `<div class="toggle-row ${nonceReused ? '' : 'safe'}">
+      <label>
+        <input type="checkbox" id="nonce-toggle" ${nonceReused ? 'checked' : ''} onchange="toggleNonce(this.checked)">
+        Повторити nonce (використати той самий nonce для іншого повідомлення)
+      </label>
+    </div>`;
+
+    if (nonceReused) {
+      html += `<div class="toggle-msg danger">
+        <strong>⚠ Повна компрометація.</strong> XOR двох ciphertext = XOR двох plaintext → відновлення обох повідомлень. Крім того, розкривається ключ автентифікації GHASH → зловмисник може підробляти authentication tag для довільних повідомлень. І конфіденційність, і цілісність знищені.
+      </div>`;
+    } else {
+      html += `<div class="explain"><strong>AEAD (Authenticated Encryption with Associated Data):</strong> GCM = CTR (конфіденційність) + GHASH (цілісність). Authentication tag перевіряє, що ciphertext не був змінений. Рекомендований режим для нових систем. <strong>Критична вимога:</strong> nonce має бути унікальним для кожної операції з тим самим ключем.</div>`;
+    }
+  }
+
+  document.getElementById('main').innerHTML = html;
+}
+
+function toggleNonce(checked) {
+  nonceReused = checked;
+  render();
+}
+
+// Init
+render();
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  const modes = ['ecb', 'cbc', 'ctr', 'gcm'];
+  const idx = modes.indexOf(currentMode);
+  if (e.key === 'ArrowRight' && idx < 3) setMode(modes[idx + 1]);
+  if (e.key === 'ArrowLeft' && idx > 0) setMode(modes[idx - 1]);
+});
+</script>
+</body>
+</html>
