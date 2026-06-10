@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nonce Reuse Attack — GCM Compromise</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:720px;margin-bottom:24px}
+.header h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.5}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#fef2f2;color:#dc2626;margin-bottom:10px}
+
+.wrap{width:100%;max-width:860px}
+
+/* Toggle */
+.toggle-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:14px 18px;border-radius:12px;border:2px solid;transition:all .4s}
+.toggle-bar.safe{border-color:#10b981;background:#ecfdf5}
+.toggle-bar.danger{border-color:#ef4444;background:#fef2f2}
+.toggle-bar label{font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:10px;flex:1}
+.toggle-bar input{width:18px;height:18px;cursor:pointer}
+.toggle-bar .status{font-size:0.78rem;font-weight:700;padding:4px 14px;border-radius:8px}
+
+/* Two messages side by side */
+.msgs{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.msg-card{background:#fff;border:1.5px solid #e5e7eb;border-radius:12px;padding:16px;transition:all .4s}
+.msg-card h4{font-size:0.78rem;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.msg-row{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:0.75rem}
+.msg-row:last-child{border-bottom:none}
+.msg-row .ml{width:60px;font-size:0.62rem;font-weight:600;color:#9ca3af;text-transform:uppercase;flex-shrink:0}
+.msg-row code{font-family:'JetBrains Mono',monospace;font-size:0.72rem;background:#f3f4f6;padding:2px 6px;border-radius:4px}
+.msg-card.compromised{border-color:#ef4444;background:#fff5f5}
+.msg-card.compromised code{background:#fecaca}
+
+/* Attack chain */
+.chain{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:20px;margin-bottom:16px}
+.chain h3{font-size:0.88rem;font-weight:700;margin-bottom:14px}
+.chain-steps{display:flex;flex-direction:column;gap:8px}
+.cstep{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-radius:10px;border:1.5px solid #e5e7eb;background:#f9fafb;transition:all .5s}
+.cstep.active{border-color:#ef4444;background:#fef2f2}
+.cstep.dormant{opacity:0.35}
+.cstep .cs-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:#fff;flex-shrink:0}
+.cstep .cs-body{flex:1}
+.cstep .cs-title{font-size:0.78rem;font-weight:700;color:#1a1a2e;margin-bottom:2px}
+.cstep .cs-detail{font-size:0.72rem;color:#4b5563;line-height:1.5}
+.cstep .cs-formula{font-family:'JetBrains Mono',monospace;font-size:0.7rem;background:#fff;padding:4px 8px;border-radius:6px;margin-top:4px;display:inline-block;border:1px solid #e5e7eb}
+
+.explain{margin-top:16px;padding:14px 16px;border-radius:10px;font-size:0.78rem;line-height:1.6;border:1px solid}
+.explain.safe{background:#ecfdf5;border-color:#bbf7d0;color:#065f46}
+.explain.danger{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+.explain strong{color:inherit}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 11 · РОЗДІЛ 4</div>
+  <h1>Nonce Reuse Attack (GCM)</h1>
+  <p>AES-256-GCM — рекомендований режим. Але одна помилка — повторне використання nonce — повністю знищує і конфіденційність, і цілісність.</p>
+</div>
+
+<div class="wrap">
+  <div class="toggle-bar safe" id="toggle-bar">
+    <label>
+      <input type="checkbox" id="reuse-toggle" onchange="update()">
+      <span>Повторити nonce для другого повідомлення</span>
+    </label>
+    <span class="status" id="status" style="background:#d1fae5;color:#065f46">✓ Безпечно</span>
+  </div>
+
+  <div class="msgs" id="msgs"></div>
+  <div class="chain" id="chain"></div>
+  <div class="explain" id="explain"></div>
+</div>
+
+<script>
+function update() {
+  const reused = document.getElementById('reuse-toggle').checked;
+  const bar = document.getElementById('toggle-bar');
+  const status = document.getElementById('status');
+
+  bar.className = 'toggle-bar ' + (reused ? 'danger' : 'safe');
+  status.style.background = reused ? '#fecaca' : '#d1fae5';
+  status.style.color = reused ? '#991b1b' : '#065f46';
+  status.textContent = reused ? '⚠ Компрометація!' : '✓ Безпечно';
+
+  // Messages
+  const n1 = 'N=7a3f';
+  const n2 = reused ? 'N=7a3f' : 'N=b2c8';
+  const c1 = 'C₁=5e2d...';
+  const c2 = reused ? 'C₂=8a91...' : 'C₂=3f7a...';
+
+  const msgHtml = `
+    <div class="msg-card ${reused ? 'compromised' : ''}">
+      <h4>📨 Повідомлення 1</h4>
+      <div class="msg-row"><div class="ml">Nonce</div><code>${n1}</code></div>
+      <div class="msg-row"><div class="ml">Plain</div><code>P₁ = "Оцінка: 87%"</code></div>
+      <div class="msg-row"><div class="ml">Cipher</div><code>${c1}</code></div>
+      <div class="msg-row"><div class="ml">Tag</div><code>T₁ = valid ✓</code></div>
+    </div>
+    <div class="msg-card ${reused ? 'compromised' : ''}">
+      <h4>📨 Повідомлення 2</h4>
+      <div class="msg-row"><div class="ml">Nonce</div><code>${n2}</code> ${reused ? '<span style="color:#dc2626;font-weight:700;font-size:0.7rem">⚠ ЗБІГ!</span>' : ''}</div>
+      <div class="msg-row"><div class="ml">Plain</div><code>P₂ = "Кандидат: Іваненко"</code></div>
+      <div class="msg-row"><div class="ml">Cipher</div><code>${c2}</code></div>
+      <div class="msg-row"><div class="ml">Tag</div><code>T₂ = ${reused ? '⚠ forgeable' : 'valid ✓'}</code></div>
+    </div>`;
+  document.getElementById('msgs').innerHTML = msgHtml;
+
+  // Attack chain
+  const attackSteps = [
+    {
+      title: 'XOR ciphertexts',
+      detail: 'Зловмисник обчислює C₁ ⊕ C₂. Оскільки обидва XOR-ені з тим самим keystream (бо nonce однаковий), результат = P₁ ⊕ P₂.',
+      formula: 'C₁ ⊕ C₂ = (P₁ ⊕ KS) ⊕ (P₂ ⊕ KS) = P₁ ⊕ P₂',
+      color: '#f59e0b'
+    },
+    {
+      title: 'Відновлення plaintext',
+      detail: 'Якщо один із plaintext частково відомий (наприклад, формат JSON або фіксовані поля), зловмисник відновлює обидва повідомлення.',
+      formula: 'P₁ ⊕ P₂ + known(P₁) → P₂',
+      color: '#ef4444'
+    },
+    {
+      title: 'Відновлення GHASH ключа',
+      detail: 'Повторення nonce розкриває автентифікаційний підключ H, що використовується в GHASH. Це дозволяє обчислити H з authentication tags.',
+      formula: 'T₁, T₂, N → H (GHASH subkey)',
+      color: '#dc2626'
+    },
+    {
+      title: 'Підробка authentication tag',
+      detail: 'Маючи H, зловмисник може створити валідний tag для будь-якого повідомлення. Система прийме підроблений ciphertext як автентичний.',
+      formula: 'forge(H, C_fake) → T_valid',
+      color: '#991b1b'
+    },
+  ];
+
+  let chainHtml = `<h3>${reused ? '🔴 Ланцюг атаки' : '🟢 Унікальні nonce — атака неможлива'}</h3><div class="chain-steps">`;
+  attackSteps.forEach((s, i) => {
+    const cls = reused ? 'active' : 'dormant';
+    chainHtml += `<div class="cstep ${cls}">
+      <div class="cs-num" style="background:${reused ? s.color : '#d1d5db'}">${i + 1}</div>
+      <div class="cs-body">
+        <div class="cs-title">${s.title}</div>
+        <div class="cs-detail">${s.detail}</div>
+        ${reused ? `<div class="cs-formula">${s.formula}</div>` : ''}
+      </div>
+    </div>`;
+  });
+  chainHtml += '</div>';
+  document.getElementById('chain').innerHTML = chainHtml;
+
+  // Explain
+  const exp = reused
+    ? `<strong>Повна компрометація:</strong> одне повторення nonce знищує обидві гарантії GCM — і конфіденційність (відновлення plaintext), і цілісність (підробка tag). На практиці це означає: у мікросервісній архітектурі перезапуск pod'а може скинути лічильник nonce, і ті самі значення використовуються повторно. Рішення: випадкові nonce (96 біт) або окремий DEK для кожного об'єкта (envelope encryption), що робить повторення nonce нерелевантним.`
+    : `<strong>Безпечна робота:</strong> при унікальних nonce AES-256-GCM забезпечує конфіденційність, цілісність і автентичність одночасно. Кожне повідомлення шифрується унікальним keystream, і authentication tag захищає від модифікації. Увімкніть перемикач, щоб побачити, що відбувається при повторенні nonce.`;
+
+  document.getElementById('explain').className = 'explain ' + (reused ? 'danger' : 'safe');
+  document.getElementById('explain').innerHTML = exp;
+}
+
+update();
+</script>
+</body>
+</html>

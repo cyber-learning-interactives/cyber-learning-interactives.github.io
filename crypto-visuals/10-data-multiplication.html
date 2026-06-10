@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Multiplication Map — AI-система множить дані</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:720px;margin-bottom:24px}
+.header h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.5}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#fce7f3;color:#9d174d;margin-bottom:10px}
+
+.wrap{width:100%;max-width:860px}
+
+/* Source */
+.source{text-align:center;margin-bottom:8px}
+.source-box{display:inline-flex;align-items:center;gap:10px;padding:14px 24px;background:#7c5cbf;border-radius:12px;color:#fff}
+.source-box .s-icon{font-size:1.5rem}
+.source-box .s-text{font-size:0.88rem;font-weight:700}
+.source-arrow{font-size:1.2rem;color:#d1d5db;margin:4px 0}
+
+/* Forms grid */
+.forms{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.form-card{background:#fff;border:1.5px solid #e5e7eb;border-radius:12px;padding:14px;cursor:pointer;transition:all .3s;position:relative}
+.form-card:hover{border-color:#7c5cbf;transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.06)}
+.form-card.selected{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+.form-card .f-num{position:absolute;top:8px;right:10px;font-size:0.6rem;font-weight:700;color:#d1d5db}
+.form-card .f-icon{font-size:1.4rem;margin-bottom:6px}
+.form-card h4{font-size:0.78rem;font-weight:700;margin-bottom:4px}
+.form-card .f-type{font-size:0.65rem;color:#6b7280;margin-bottom:6px}
+/* Protection level bar */
+.prot-bar{height:4px;border-radius:2px;background:#f3f4f6;overflow:hidden;margin-top:6px}
+.prot-fill{height:100%;border-radius:2px;transition:width .4s}
+.prot-label{font-size:0.58rem;font-weight:600;margin-top:3px;display:flex;justify-content:space-between}
+
+/* Detail */
+.detail{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:20px;min-height:160px;transition:all .3s}
+.detail h3{font-size:0.9rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dcell{padding:10px 12px;background:#f9fafb;border-radius:8px;border:1px solid #f3f4f6}
+.dcell .dl{font-size:0.62rem;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px}
+.dcell .dv{font-size:0.78rem;color:#1a1a2e;line-height:1.5}
+.dcell.full{grid-column:1/-1}
+.dcell .crypto-yes{color:#059669;font-weight:600}
+.dcell .crypto-no{color:#dc2626;font-weight:600}
+.dcell .crypto-part{color:#d97706;font-weight:600}
+
+/* Stats bar */
+.stats{display:flex;gap:16px;margin-top:16px;flex-wrap:wrap}
+.stat{flex:1;min-width:140px;padding:12px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:10px;text-align:center}
+.stat .sn{font-size:1.4rem;font-weight:700}
+.stat .sl{font-size:0.68rem;color:#6b7280;margin-top:2px}
+
+.hint{text-align:center;font-size:0.75rem;color:#9ca3af;margin-top:12px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 12 · РОЗДІЛ 2</div>
+  <h1>Data Multiplication Map</h1>
+  <p>В AI-системі один документ породжує щонайменше 6 різних форм. Кожна форма — окремий об'єкт захисту з потенційно різним рівнем покриття криптографією.</p>
+</div>
+
+<div class="wrap">
+  <div class="source">
+    <div class="source-box"><span class="s-icon">📄</span><span class="s-text">Резюме кандидата</span></div>
+    <div class="source-arrow">↓ AI-обробка створює 6 форм</div>
+  </div>
+
+  <div class="forms" id="forms"></div>
+  <div class="detail" id="detail">
+    <p style="color:#9ca3af;text-align:center;padding:20px">Натисніть на форму даних, щоб побачити деталі</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="sn">6</div><div class="sl">Форм одного документа</div></div>
+    <div class="stat"><div class="sn" style="color:#10b981">2</div><div class="sl">Повний crypto-захист</div></div>
+    <div class="stat"><div class="sn" style="color:#f59e0b">2</div><div class="sl">Частковий захист</div></div>
+    <div class="stat"><div class="sn" style="color:#ef4444">2</div><div class="sl">Crypto не допомагає</div></div>
+  </div>
+
+  <div class="hint">Еволюція Data Journey Map (тема 1) з AI-специфічним шаром</div>
+</div>
+
+<script>
+const forms = [
+  {
+    icon: '🗄️', title: 'Оригінальний файл', type: 'Файл у S3',
+    num: '①', accent: '#10b981', glow: 'rgba(16,185,129,0.15)',
+    protection: 90, protColor: '#10b981', protLabel: 'Повний',
+    data: 'CV у форматі PDF/DOCX з повними персональними даними',
+    state: 'At rest (зберігання)',
+    crypto: '<span class="crypto-yes">✓ SSE-KMS, AES-256-GCM, envelope encryption</span>',
+    gap: 'Доступ через IAM — якщо права надмірні, шифрування не захищає',
+    aiRisk: 'Немає AI-специфічного ризику на цьому рівні'
+  },
+  {
+    icon: '🗃️', title: 'Запис у базі даних', type: 'PostgreSQL',
+    num: '②', accent: '#10b981', glow: 'rgba(16,185,129,0.15)',
+    protection: 80, protColor: '#10b981', protLabel: 'Повний',
+    data: 'Профіль кандидата, оцінки, ранжування',
+    state: 'At rest (зберігання)',
+    crypto: '<span class="crypto-yes">✓ TDE + column-level encryption</span>',
+    gap: 'Оцінки є похідними даними з юридичними наслідками (GDPR Art. 22)',
+    aiRisk: 'Bias у scoring може бути прихований за шифруванням — crypto не впливає на fairness'
+  },
+  {
+    icon: '🔢', title: 'Embedding вектор', type: 'Vector DB',
+    num: '③', accent: '#f59e0b', glow: 'rgba(245,158,11,0.15)',
+    protection: 30, protColor: '#f59e0b', protLabel: 'Частковий',
+    data: 'Числове представлення тексту резюме (768–1536 dim)',
+    state: 'At rest (зберігання)',
+    crypto: '<span class="crypto-part">△ FDE або BYOK (якщо підтримується). Similarity search працює на plaintext.</span>',
+    gap: 'Embedding inversion: з вектора можна відновити або ідентифікувати текст. Re-identification через similarity search.',
+    aiRisk: 'AI-специфічний ризик: embeddings сприймаються як «технічні дані», але зберігають ідентичність'
+  },
+  {
+    icon: '💬', title: 'Промпт до LLM', type: 'In transit → зовнішній API',
+    num: '④', accent: '#ef4444', glow: 'rgba(239,68,68,0.15)',
+    protection: 15, protColor: '#ef4444', protLabel: 'Мінімальний',
+    data: 'Повний текст резюме + system prompt з бізнес-логікою',
+    state: 'In transit (передача)',
+    crypto: '<span class="crypto-no">TLS захищає канал, але не контролює використання після отримання провайдером</span>',
+    gap: 'Дані виходять за периметр організації. Prompt injection може маніпулювати результатами.',
+    aiRisk: 'Prompt injection (OWASP #1 для LLM 2025), data minimization порушена якщо передається повний текст'
+  },
+  {
+    icon: '📋', title: 'Inference лог', type: 'Логи запитів і відповідей',
+    num: '⑤', accent: '#ef4444', glow: 'rgba(239,68,68,0.15)',
+    protection: 20, protColor: '#ef4444', protLabel: 'Мінімальний',
+    data: 'Prompt + response + metadata (хто, коли, для якого кандидата)',
+    state: 'At rest (зберігання)',
+    crypto: '<span class="crypto-no">KMS для файлів логів, але PII записується у відкритому вигляді всередині лога</span>',
+    gap: 'Тіньова копія: дані, захищені в основному сховищі, дублюються в логах без маскування',
+    aiRisk: 'Логи створюють паралельну базу PII. Retention часто не узгоджений з основними даними.'
+  },
+  {
+    icon: '🧠', title: 'Параметри моделі', type: 'Fine-tuned weights',
+    num: '⑥', accent: '#f59e0b', glow: 'rgba(245,158,11,0.15)',
+    protection: 40, protColor: '#f59e0b', protLabel: 'Частковий',
+    data: 'Ваги моделі, що навчалась на корпусі резюме',
+    state: 'At rest (зберігання) + In use (inference)',
+    crypto: '<span class="crypto-part">△ Шифрування артефактів at rest. Але memorization не усувається шифруванням.</span>',
+    gap: 'Training data memorization: модель може відтворювати фрагменти резюме. Не підпадає під стандартні механізми видалення (GDPR Art. 17).',
+    aiRisk: 'Дані «вбудовані» у параметри — їх не можна видалити через crypto-shredding. Потрібен re-training.'
+  },
+];
+
+let selected = null;
+
+function renderForms() {
+  let html = '';
+  forms.forEach((f, i) => {
+    html += `<div class="form-card" id="form-${i}" style="--accent:${f.accent};--glow:${f.glow}" onclick="selectForm(${i})">
+      <div class="f-num">${f.num}</div>
+      <div class="f-icon">${f.icon}</div>
+      <h4>${f.title}</h4>
+      <div class="f-type">${f.type}</div>
+      <div class="prot-bar"><div class="prot-fill" style="width:${f.protection}%;background:${f.protColor}"></div></div>
+      <div class="prot-label"><span style="color:${f.protColor}">${f.protLabel}</span><span>${f.protection}%</span></div>
+    </div>`;
+  });
+  document.getElementById('forms').innerHTML = html;
+}
+
+function selectForm(i) {
+  selected = i;
+  document.querySelectorAll('.form-card').forEach((c, j) => c.classList.toggle('selected', j === i));
+  const f = forms[i];
+  document.getElementById('detail').innerHTML = `
+    <h3><span style="font-size:1.2rem">${f.icon}</span> ${f.title}</h3>
+    <div class="detail-grid">
+      <div class="dcell"><div class="dl">Дані</div><div class="dv">${f.data}</div></div>
+      <div class="dcell"><div class="dl">Стан</div><div class="dv">${f.state}</div></div>
+      <div class="dcell"><div class="dl">Crypto-захист</div><div class="dv">${f.crypto}</div></div>
+      <div class="dcell"><div class="dl">Прогалина</div><div class="dv">${f.gap}</div></div>
+      <div class="dcell full" style="background:#fff5f5;border-color:#fecaca"><div class="dl" style="color:#dc2626">AI-специфічний ризик</div><div class="dv">${f.aiRisk}</div></div>
+    </div>`;
+}
+
+renderForms();
+</script>
+</body>
+</html>
