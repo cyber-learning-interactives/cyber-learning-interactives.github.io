@@ -16,9 +16,7 @@ h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
 .card .topic{font-size:0.65rem;font-weight:600;color:#7c5cbf;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px}
 .card h2{font-size:1rem;font-weight:600;margin-bottom:4px}
 .card p{font-size:0.8rem;color:#6b7280;line-height:1.4}
-.badge{display:inline-block;font-size:0.6rem;font-weight:600;padding:2px 8px;border-radius:8px;background:#fef3c7;color:#92400e;margin-left:8px}
-.soon{opacity:0.5;pointer-events:none}
-.soon .badge{background:#f3f4f6;color:#9ca3af}
+.divider{margin:28px 0 16px;padding-bottom:8px;border-bottom:2px solid #e5e7eb;font-size:0.72rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em}
 </style>
 </head>
 <body>
@@ -26,134 +24,162 @@ h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
   <h1>Crypto Visuals</h1>
   <p class="sub">Інтерактивні діаграми до курсу «Криптографія та захист даних». 22 візуалізації, що доповнюють конспекти і полегшують сприйняття ключових концепцій.</p>
 
+  <div class="divider">Тема 1. Стани даних, приватність і роль криптографії</div>
+
   <a class="card" href="01-data-journey.html">
-    <div class="topic">Тема 1 · Розділ 10</div>
+    <div class="topic">Тема 1 · Карта даних HR AI-системи</div>
     <h2>Data Journey Map</h2>
     <p>Як одне резюме породжує 7 різних форм даних у компонентах HR AI-системи.</p>
   </a>
 
+  <div class="divider">Тема 2. Практичні проблеми захисту даних</div>
+
   <a class="card" href="12-defense-in-depth.html">
-    <div class="topic">Тема 2 · Розділ 8</div>
+    <div class="topic">Тема 2 · Принцип багаторівневого захисту</div>
     <h2>Defense in Depth</h2>
     <p>6 шарів захисту. Вимкніть шар — побачте, як система деградує.</p>
   </a>
 
   <a class="card" href="20-shadow-data.html">
-    <div class="topic">Тема 2 · Розділ 4</div>
+    <div class="topic">Тема 2 · Тіньові копії даних</div>
     <h2>Shadow Data Tracer</h2>
     <p>Одне резюме → 5 тіньових копій у різних місцях. 3 без належного захисту.</p>
   </a>
 
+  <div class="divider">Тема 3. Регуляторні вимоги до захисту даних і AI</div>
+
   <a class="card" href="13-control-mapping.html">
-    <div class="topic">Тема 3 · Розділ 8</div>
+    <div class="topic">Тема 3 · Control mapping: від вимог до контролів</div>
     <h2>Control Mapping Explorer</h2>
     <p>GDPR Art. 32, AI Act Art. 15 → які контролі реалізують вимогу і яка роль crypto.</p>
   </a>
 
+  <div class="divider">Тема 4. Симетрична криптографія</div>
+
+  <a class="card" href="17-avalanche-effect.html">
+    <div class="topic">Тема 4 · Структура AES</div>
+    <h2>AES Avalanche Effect</h2>
+    <p>Змініть 1 біт → побачте, як після кожного раунду AES різниця зростає до ~50%.</p>
+  </a>
+
   <a class="card" href="02-encryption-modes.html">
-    <div class="topic">Тема 4 · Розділ 4</div>
+    <div class="topic">Тема 4 · Режими шифрування</div>
     <h2>Encryption Modes Simulator</h2>
     <p>ECB → CBC → CTR → GCM: анімація потоку блоків і порівняння властивостей.</p>
   </a>
 
   <a class="card" href="03-envelope-encryption.html">
-    <div class="topic">Тема 4 · Розділ 7.3</div>
+    <div class="topic">Тема 4 · Envelope encryption</div>
     <h2>Envelope Encryption Flow</h2>
     <p>KMS → KEK → DEK → дані: покрокова анімація дворівневої схеми ключів.</p>
   </a>
 
-  <a class="card" href="17-avalanche-effect.html">
-    <div class="topic">Тема 4 · Розділ 3.2</div>
-    <h2>AES Avalanche Effect</h2>
-    <p>Змініть 1 біт → побачте, як після кожного раунду AES різниця зростає до ~50%.</p>
-  </a>
-
-  <a class="card" href="04-tls-handshake.html">
-    <div class="topic">Тема 5 · Розділ 8</div>
-    <h2>TLS 1.3 Handshake</h2>
-    <p>Як ECDHE, сертифікати і AES працюють разом у реальному з'єднанні.</p>
-  </a>
+  <div class="divider">Тема 5. Асиметрична криптографія та системи хешування</div>
 
   <a class="card" href="05-hash-decision-tree.html">
-    <div class="topic">Тема 5 · Розділ 6</div>
+    <div class="topic">Тема 5 · Хеш-функції та їхні ролі</div>
     <h2>Hash Decision Tree</h2>
     <p>SHA-256 чи Argon2? HMAC чи підпис? Правильний інструмент для кожної задачі.</p>
   </a>
 
-  <a class="card" href="11-chain-of-trust.html">
-    <div class="topic">Тема 6 · Розділи 1, 3, 5</div>
-    <h2>Chain of Trust Explorer</h2>
-    <p>Ланцюг довіри PKI: Root CA → Intermediate → Leaf. Що трапиться, якщо ланку зламати?</p>
+  <a class="card" href="04-tls-handshake.html">
+    <div class="topic">Тема 5 · Як це працює разом: TLS handshake</div>
+    <h2>TLS 1.3 Handshake</h2>
+    <p>Як ECDHE, сертифікати і AES працюють разом у реальному з'єднанні.</p>
   </a>
 
+  <div class="divider">Тема 6. Інфраструктура відкритих ключів (PKI)</div>
+
+  <a class="card" href="11-chain-of-trust.html">
+    <div class="topic">Тема 6 · Ланцюг довіри, верифікація, відкликання</div>
+    <h2>Chain of Trust Explorer</h2>
+    <p>Root CA → Intermediate → Leaf. Що трапиться, якщо ланку зламати?</p>
+  </a>
+
+  <div class="divider">Тема 7. Системи електронно-цифрового підпису</div>
+
   <a class="card" href="06-sign-verify-mac.html">
-    <div class="topic">Тема 7 · Розділ 2</div>
+    <div class="topic">Тема 7 · Механізм цифрового підпису</div>
     <h2>Sign vs Verify + MAC vs Signature</h2>
     <p>Як створюється і перевіряється підпис. Чому MAC не доводить авторство.</p>
   </a>
 
-  <a class="card" href="07-tls-termination.html">
-    <div class="topic">Тема 9 · Розділ 4.2</div>
-    <h2>TLS Termination Explorer</h2>
-    <p>Де саме дані «оголюються» після розшифрування на load balancer.</p>
-  </a>
-
-  <a class="card" href="08-kms-access-flow.html">
-    <div class="topic">Тема 10 · Розділ 3</div>
-    <h2>KMS Access Decision Flow</h2>
-    <p>IAM policy → Key policy → Condition keys → Grant/Deny: як KMS вирішує.</p>
-  </a>
-
-  <a class="card" href="21-key-lifecycle.html">
-    <div class="topic">Тема 10 · Розділ 4</div>
-    <h2>Key Lifecycle</h2>
-    <p>Від генерації до знищення: 7 фаз життєвого циклу ключа і що відбувається з даними.</p>
-  </a>
+  <div class="divider">Тема 8. Сучасні алгоритми і програмне забезпечення шифрування</div>
 
   <a class="card" href="14-algorithm-matrix.html">
-    <div class="topic">Тема 8 · Розділ 2</div>
+    <div class="topic">Тема 8 · Зведена таблиця алгоритмів</div>
     <h2>Algorithm Decision Matrix</h2>
     <p>Обери задачу → рекомендований алгоритм, альтернатива і чого НЕ використовувати.</p>
   </a>
 
   <a class="card" href="19-coverage-map-builder.html">
-    <div class="topic">Тема 8 · Розділ 10</div>
+    <div class="topic">Тема 8 · Encryption Coverage Map</div>
     <h2>Coverage Map Builder</h2>
     <p>Робочий інструмент: заповніть карту шифрування для HR AI і побачте прогалини.</p>
   </a>
 
-  <a class="card" href="09-nonce-reuse.html">
-    <div class="topic">Тема 11 · Розділ 4</div>
-    <h2>Nonce Reuse Attack</h2>
-    <p>Чому повторення nonce у GCM призводить до повної компрометації.</p>
+  <div class="divider">Тема 9. Захист даних при передачі: TLS, VPN, IPsec</div>
+
+  <a class="card" href="07-tls-termination.html">
+    <div class="topic">Тема 9 · TLS termination</div>
+    <h2>TLS Termination Explorer</h2>
+    <p>Де саме дані «оголюються» після розшифрування на load balancer.</p>
   </a>
 
+  <div class="divider">Тема 10. Операційна криптографія: управління ключами, доступом і відповідністю</div>
+
+  <a class="card" href="08-kms-access-flow.html">
+    <div class="topic">Тема 10 · Контроль доступу до ключів</div>
+    <h2>KMS Access Decision Flow</h2>
+    <p>5 сценаріїв HR AI через IAM policy → Key policy → Condition keys.</p>
+  </a>
+
+  <a class="card" href="21-key-lifecycle.html">
+    <div class="topic">Тема 10 · Життєвий цикл ключа</div>
+    <h2>Key Lifecycle</h2>
+    <p>Від генерації до знищення: 7 фаз і що відбувається з даними на кожній.</p>
+  </a>
+
+  <div class="divider">Тема 11. Помилки застосування криптографії</div>
+
   <a class="card" href="22-crypto-misuse.html">
-    <div class="topic">Тема 11 · Розділ 2</div>
+    <div class="topic">Тема 11 · Таксономія помилок</div>
     <h2>Crypto Misuse Taxonomy</h2>
     <p>83% помилок — не в алгоритмах. Категорії misuse з CVE та прикладами з HR AI.</p>
   </a>
 
+  <a class="card" href="09-nonce-reuse.html">
+    <div class="topic">Тема 11 · Nonce reuse і GCM</div>
+    <h2>Nonce Reuse Attack</h2>
+    <p>Чому повторення nonce у GCM призводить до повної компрометації.</p>
+  </a>
+
+  <div class="divider">Тема 12. AI-специфічні ризики для даних і криптографії</div>
+
   <a class="card" href="10-data-multiplication.html">
-    <div class="topic">Тема 12 · Розділ 2</div>
+    <div class="topic">Тема 12 · Множення форм даних в AI-системі</div>
     <h2>Data Multiplication Map</h2>
     <p>Як AI-система множить форми одних даних: файл → embedding → промпт → лог.</p>
   </a>
 
   <a class="card" href="18-prompt-injection.html">
-    <div class="topic">Тема 12 · Розділ 3</div>
+    <div class="topic">Тема 12 · Prompt injection</div>
     <h2>Prompt Injection Anatomy</h2>
     <p>Покрокова атака: прихований текст у резюме → маніпуляція результатами AI.</p>
   </a>
 
+  <div class="divider">Тема 13. Криптоаналіз і системна оцінка захищеності</div>
+
   <a class="card" href="15-attack-surface.html">
-    <div class="topic">Тема 13</div>
+    <div class="topic">Тема 13 · Системна оцінка захищеності</div>
     <h2>Attack Surface Explorer</h2>
     <p>8 компонентів HR AI × 24 вектори атак із 14 тем курсу. Контролі для кожного.</p>
   </a>
 
+  <div class="divider">Тема 14. Політика захисту даних на практиці</div>
+
   <a class="card" href="16-compliance-matrix.html">
-    <div class="topic">Тема 14 · Capstone</div>
+    <div class="topic">Тема 14 · Артефакти для аудиту</div>
     <h2>Compliance Evidence Matrix</h2>
     <p>5 артефактів для аудиту: що потрібно, звідки в курсі, інтерактивний чекліст.</p>
   </a>
