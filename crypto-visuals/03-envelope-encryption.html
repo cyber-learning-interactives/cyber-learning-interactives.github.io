@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Envelope Encryption Flow — DEK + KEK</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:720px;margin-bottom:24px}
+.header h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.5}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#ede9fe;color:#7c5cbf;margin-bottom:10px}
+
+.canvas{width:100%;max-width:820px;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;margin-bottom:16px;position:relative}
+
+/* Actions */
+.actions{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
+.abtn{padding:10px 18px;border:1.5px solid #e5e7eb;border-radius:10px;background:#fff;font-family:inherit;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px}
+.abtn:hover{border-color:#7c5cbf;background:#faf5ff}
+.abtn.on{border-color:#7c5cbf;background:#ede9fe;color:#5b21b6}
+.abtn .emoji{font-size:1rem}
+
+/* Architecture diagram */
+.arch{display:flex;flex-direction:column;align-items:center;gap:0;position:relative}
+
+/* KMS Box */
+.kms{width:100%;max-width:260px;padding:16px 20px;background:#7c5cbf;border-radius:14px;color:#fff;text-align:center;position:relative;z-index:2}
+.kms h3{font-size:0.9rem;font-weight:700;margin-bottom:4px}
+.kms p{font-size:0.7rem;opacity:0.8}
+.kms .kek-badge{display:inline-block;margin-top:8px;padding:4px 14px;background:rgba(255,255,255,0.2);border-radius:8px;font-size:0.72rem;font-weight:600;font-family:'JetBrains Mono',monospace}
+
+/* Connector */
+.conn{width:2px;height:28px;background:#d1d5db;position:relative}
+.conn-label{position:absolute;left:10px;top:4px;font-size:0.65rem;font-weight:600;color:#7c5cbf;white-space:nowrap}
+
+/* DEK layer */
+.dek-row{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;width:100%}
+.dek-card{width:200px;border:2px solid #e5e7eb;border-radius:12px;padding:14px;text-align:center;transition:all .5s;position:relative}
+.dek-card h4{font-size:0.75rem;font-weight:700;color:#1a1a2e;margin-bottom:4px;font-family:'JetBrains Mono',monospace}
+.dek-card p{font-size:0.65rem;color:#6b7280}
+.dek-card.active{border-color:#f72585;box-shadow:0 0 0 3px rgba(247,37,133,0.15)}
+.dek-card.shredded{border-color:#ef4444;background:#fef2f2;opacity:0.5}
+.dek-card.shredded h4{text-decoration:line-through;color:#ef4444}
+
+/* Data objects */
+.data-row{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;width:100%}
+.data-card{width:200px;border:1.5px solid #e5e7eb;border-radius:12px;padding:14px;text-align:center;background:#f9fafb;transition:all .5s}
+.data-card .icon{font-size:1.5rem;margin-bottom:4px}
+.data-card h4{font-size:0.75rem;font-weight:600;color:#1a1a2e;margin-bottom:2px}
+.data-card p{font-size:0.62rem;color:#9ca3af}
+.data-card.encrypted{border-color:#10b981;background:#ecfdf5}
+.data-card.encrypted p{color:#059669}
+.data-card.locked{border-color:#ef4444;background:#fef2f2}
+.data-card.locked .icon{filter:grayscale(1);opacity:0.4}
+.data-card.locked p{color:#dc2626;font-weight:500}
+
+/* Step narrative */
+.narrative{margin-top:20px;padding:16px 20px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:12px;min-height:80px;transition:all .3s}
+.narrative h4{font-size:0.8rem;font-weight:700;color:#1a1a2e;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.narrative .step-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:0.65rem;font-weight:700;color:#fff}
+.narrative p{font-size:0.78rem;color:#4b5563;line-height:1.6}
+.narrative .steps{counter-reset:step}
+.narrative .st{padding:6px 0;font-size:0.76rem;color:#4b5563;line-height:1.5;border-bottom:1px solid #f3f4f6}
+.narrative .st:last-child{border-bottom:none}
+.narrative .st strong{color:#1a1a2e}
+
+.conn2{width:2px;height:20px;background:#d1d5db}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 4 · РОЗДІЛ 7.3</div>
+  <h1>Envelope Encryption</h1>
+  <p>Дворівнева схема управління ключами: DEK шифрує дані, KEK (у KMS) шифрує DEK. Натисніть кнопку, щоб побачити, як працює кожна операція.</p>
+</div>
+
+<div class="canvas">
+  <div class="actions" id="actions">
+    <button class="abtn on" onclick="showScene('overview')"><span class="emoji">🔍</span> Огляд</button>
+    <button class="abtn" onclick="showScene('encrypt')"><span class="emoji">🔒</span> Зашифрувати</button>
+    <button class="abtn" onclick="showScene('decrypt')"><span class="emoji">🔓</span> Прочитати</button>
+    <button class="abtn" onclick="showScene('rotate')"><span class="emoji">🔄</span> Ротація KEK</button>
+    <button class="abtn" onclick="showScene('shred')"><span class="emoji">🗑️</span> Crypto-shredding</button>
+  </div>
+  <div id="scene"></div>
+</div>
+
+<script>
+let current = 'overview';
+
+function showScene(id) {
+  current = id;
+  document.querySelectorAll('.abtn').forEach((b, i) => {
+    const scenes = ['overview','encrypt','decrypt','rotate','shred'];
+    b.classList.toggle('on', scenes[i] === id);
+  });
+  render();
+}
+
+function kmsBox(kekLabel = 'KEK v1', extra = '') {
+  return `<div class="kms">
+    <h3>☁️ KMS / HSM</h3>
+    <p>Ключ ніколи не покидає KMS</p>
+    <div class="kek-badge">${kekLabel}</div>
+    ${extra}
+  </div>`;
+}
+
+function connector(label = '') {
+  return `<div class="conn">${label ? `<div class="conn-label">${label}</div>` : ''}</div>`;
+}
+function conn2() { return `<div class="conn2"></div>`; }
+
+function dekRow(deks, shredded = false) {
+  return `<div class="dek-row">${deks.map(d => 
+    `<div class="dek-card ${d.active ? 'active' : ''} ${shredded ? 'shredded' : ''}">
+      <h4>${d.label}</h4>
+      <p>${d.desc}</p>
+    </div>`
+  ).join('')}</div>`;
+}
+
+function dataRow(items) {
+  return `<div class="data-row">${items.map(d =>
+    `<div class="data-card ${d.cls || ''}">
+      <div class="icon">${d.icon}</div>
+      <h4>${d.label}</h4>
+      <p>${d.desc}</p>
+    </div>`
+  ).join('')}</div>`;
+}
+
+function render() {
+  let html = '<div class="arch">';
+  
+  if (current === 'overview') {
+    html += kmsBox();
+    html += connector('KEK шифрує DEK');
+    html += dekRow([
+      { label: 'DEK₁ (AES-256)', desc: 'Для CV-файлів', active: false },
+      { label: 'DEK₂ (AES-256)', desc: 'Для профілів і оцінок', active: false },
+      { label: 'DEK₃ (AES-256)', desc: 'Для логів і бекапів', active: false },
+    ]);
+    html += conn2();
+    html += dataRow([
+      { icon: '📄', label: 'CV файли', desc: 'Зашифровані DEK₁', cls: 'encrypted' },
+      { icon: '🗃️', label: 'Профілі, оцінки', desc: 'Зашифровані DEK₂', cls: 'encrypted' },
+      { icon: '💾', label: 'Логи, бекапи', desc: 'Зашифровані DEK₃', cls: 'encrypted' },
+    ]);
+    html += `</div>`;
+    html += `<div class="narrative">
+      <h4>Як це працює</h4>
+      <p>Кожна категорія даних шифрується окремим ключем (DEK). Усі DEK захищені одним KEK, який зберігається в KMS і ніколи не покидає його у відкритому вигляді. Сервіс не «отримує» KEK — він надсилає запит до KMS, і KMS виконує операцію всередині себе.</p>
+    </div>`;
+  }
+  
+  else if (current === 'encrypt') {
+    html += kmsBox();
+    html += connector('');
+    html += dekRow([
+      { label: 'DEK₁ (новий)', desc: '✨ Згенерований KMS', active: true },
+    ]);
+    html += conn2();
+    html += dataRow([
+      { icon: '📄', label: 'CV файл', desc: '🔒 Зашифрований DEK₁', cls: 'encrypted' },
+    ]);
+    html += `</div>`;
+    html += `<div class="narrative">
+      <h4><span class="step-num" style="background:#7c5cbf">1</span> Операція: зашифрувати об'єкт</h4>
+      <div class="steps">
+        <div class="st"><strong>Крок 1.</strong> Сервіс надсилає запит <code>GenerateDataKey</code> до KMS. KMS перевіряє IAM-права і key policy.</div>
+        <div class="st"><strong>Крок 2.</strong> KMS генерує випадковий DEK і повертає дві копії: plaintext (для шифрування) і encrypted (для зберігання).</div>
+        <div class="st"><strong>Крок 3.</strong> Сервіс шифрує об'єкт plaintext-версією DEK через AES-256-GCM.</div>
+        <div class="st"><strong>Крок 4.</strong> Plaintext DEK видаляється з пам'яті. Encrypted DEK зберігається як метадані об'єкта.</div>
+      </div>
+    </div>`;
+  }
+  
+  else if (current === 'decrypt') {
+    html += kmsBox();
+    html += connector('Decrypt DEK');
+    html += dekRow([
+      { label: 'DEK₁', desc: '🔓 Розшифрований KMS', active: true },
+    ]);
+    html += conn2();
+    html += dataRow([
+      { icon: '📄', label: 'CV файл', desc: '📖 Дані доступні', cls: '' },
+    ]);
+    html += `</div>`;
+    html += `<div class="narrative">
+      <h4><span class="step-num" style="background:#10b981">2</span> Операція: прочитати об'єкт</h4>
+      <div class="steps">
+        <div class="st"><strong>Крок 1.</strong> Сервіс зчитує encrypted DEK з метаданих об'єкта і надсилає його до KMS з запитом <code>Decrypt</code>.</div>
+        <div class="st"><strong>Крок 2.</strong> KMS перевіряє IAM-права. <strong>Якщо сервіс не має kms:Decrypt для цього ключа — відмова.</strong> Навіть повний доступ до S3 не допоможе.</div>
+        <div class="st"><strong>Крок 3.</strong> KMS повертає plaintext DEK. Сервіс дешифрує об'єкт.</div>
+        <div class="st"><strong>Крок 4.</strong> Plaintext DEK видаляється з пам'яті після використання.</div>
+      </div>
+    </div>`;
+  }
+  
+  else if (current === 'rotate') {
+    html += kmsBox('KEK v2 ✨', '<div style="font-size:0.6rem;opacity:0.7;margin-top:4px">v1 зберігається для decrypt</div>');
+    html += connector('Нові DEK → KEK v2');
+    html += dekRow([
+      { label: 'DEK₁ (KEK v1)', desc: '📦 Існуючий — не змінюється', active: false },
+      { label: 'DEK₄ (KEK v2)', desc: '✨ Новий — використовує KEK v2', active: true },
+    ]);
+    html += conn2();
+    html += dataRow([
+      { icon: '📄', label: 'Старі CV', desc: 'DEK₁ → KEK v1 (без змін)', cls: 'encrypted' },
+      { icon: '📄', label: 'Нові CV', desc: 'DEK₄ → KEK v2', cls: 'encrypted' },
+    ]);
+    html += `</div>`;
+    html += `<div class="narrative">
+      <h4><span class="step-num" style="background:#3b82f6">3</span> Операція: ротація KEK</h4>
+      <div class="steps">
+        <div class="st"><strong>Що відбувається:</strong> KMS генерує новий ключовий матеріал (KEK v2). Ідентифікатор ключа не змінюється.</div>
+        <div class="st"><strong>Нові операції</strong> <code>Encrypt</code> і <code>GenerateDataKey</code> використовують KEK v2.</div>
+        <div class="st"><strong>Існуючі дані НЕ перешифровуються.</strong> Старі DEK залишаються зашифрованими KEK v1. KMS зберігає обидві версії і автоматично обирає потрібну при Decrypt.</div>
+        <div class="st"><strong>Для додатків ротація повністю прозора</strong> — код не змінюється, alias ключа той самий.</div>
+      </div>
+    </div>`;
+  }
+  
+  else if (current === 'shred') {
+    html += kmsBox('KEK v1');
+    html += connector('');
+    html += dekRow([
+      { label: 'DEK₁ — ВИДАЛЕНО', desc: '🗑️ Ключ знищено', active: false },
+    ], true);
+    html += conn2();
+    html += dataRow([
+      { icon: '📄', label: 'CV файли', desc: '⛔ Дані назавжди недоступні', cls: 'locked' },
+    ]);
+    html += `</div>`;
+    html += `<div class="narrative">
+      <h4><span class="step-num" style="background:#ef4444">4</span> Операція: crypto-shredding</h4>
+      <div class="steps">
+        <div class="st"><strong>Принцип:</strong> замість видалення терабайтів даних — видаляється лише DEK. Без ключа дані стають криптографічно нечитабельними.</div>
+        <div class="st"><strong>GDPR Art. 17 (right to erasure):</strong> crypto-shredding є прийнятним способом реалізації права на видалення, особливо для бекапів, де пряме видалення технічно складне.</div>
+        <div class="st"><strong>Увага:</strong> видалення KEK (CMK) у KMS має обов'язковий період очікування 7–30 днів. Безпечніший підхід — спочатку disable, потім видалити після підтвердження.</div>
+      </div>
+    </div>`;
+  }
+  
+  document.getElementById('scene').innerHTML = html;
+}
+
+render();
+</script>
+</body>
+</html>
