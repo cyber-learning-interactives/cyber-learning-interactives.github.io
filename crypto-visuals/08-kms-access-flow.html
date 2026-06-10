@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KMS Access Decision Flow — IAM + Key Policy</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:720px;margin-bottom:24px}
+.header h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.5}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#ede9fe;color:#7c5cbf;margin-bottom:10px}
+
+.wrap{width:100%;max-width:860px}
+
+/* Config panel */
+.config{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:20px;margin-bottom:16px}
+.config h3{font-size:0.85rem;font-weight:700;margin-bottom:12px}
+.config-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.cfg{display:flex;flex-direction:column;gap:4px}
+.cfg label{font-size:0.68rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em}
+.cfg select{padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-family:inherit;font-size:0.78rem;font-weight:500;cursor:pointer;background:#fff;appearance:auto}
+.cfg select:focus{border-color:#7c5cbf;outline:none}
+
+/* Decision flow */
+.flow{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:8px}
+
+.gate{width:100%;max-width:480px;padding:14px 18px;border-radius:12px;border:2px solid;display:flex;align-items:center;gap:12px;transition:all .4s}
+.gate .g-icon{font-size:1.3rem;flex-shrink:0}
+.gate .g-body{flex:1}
+.gate .g-title{font-size:0.82rem;font-weight:700}
+.gate .g-detail{font-size:0.7rem;margin-top:2px}
+.gate .g-result{font-size:0.75rem;font-weight:700;padding:4px 12px;border-radius:8px;flex-shrink:0}
+
+.gate.pass{border-color:#10b981;background:#ecfdf5}
+.gate.pass .g-result{background:#d1fae5;color:#065f46}
+.gate.fail{border-color:#ef4444;background:#fef2f2}
+.gate.fail .g-result{background:#fecaca;color:#991b1b}
+.gate.skip{border-color:#d1d5db;background:#f9fafb;opacity:0.5}
+.gate.skip .g-result{background:#f3f4f6;color:#9ca3af}
+
+.gate-arrow{font-size:1.2rem;color:#d1d5db}
+
+/* Final result */
+.final{width:100%;max-width:480px;padding:18px;border-radius:14px;text-align:center;border:2px solid;transition:all .4s}
+.final h3{font-size:1rem;font-weight:700;margin-bottom:4px}
+.final p{font-size:0.78rem}
+.final.granted{border-color:#10b981;background:#ecfdf5;color:#065f46}
+.final.denied{border-color:#ef4444;background:#fef2f2;color:#991b1b}
+
+.explain{margin-top:16px;padding:14px 16px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:10px;font-size:0.78rem;color:#4b5563;line-height:1.6}
+.explain strong{color:#1a1a2e}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 10 · РОЗДІЛ 3</div>
+  <h1>KMS Access Decision Flow</h1>
+  <p>Доступ до ключа визначається двома незалежними рівнями: IAM policy і Key policy. Змініть параметри, щоб побачити, як рішення змінюється.</p>
+</div>
+
+<div class="wrap">
+  <div class="config">
+    <h3>⚙️ Параметри запиту</h3>
+    <div class="config-grid">
+      <div class="cfg">
+        <label>Хто (сервіс)</label>
+        <select id="who" onchange="evaluate()">
+          <option value="inference">Inference Service</option>
+          <option value="analytics">Analytics Service</option>
+          <option value="admin">Admin User</option>
+          <option value="unknown">Невідомий сервіс</option>
+        </select>
+      </div>
+      <div class="cfg">
+        <label>Операція</label>
+        <select id="action" onchange="evaluate()">
+          <option value="decrypt">kms:Decrypt</option>
+          <option value="encrypt">kms:Encrypt</option>
+          <option value="delete">kms:ScheduleKeyDeletion</option>
+        </select>
+      </div>
+      <div class="cfg">
+        <label>Звідки</label>
+        <select id="where" onchange="evaluate()">
+          <option value="vpc">VPC (внутрішня мережа)</option>
+          <option value="internet">Інтернет</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow" id="flow"></div>
+  <div class="explain" id="explain"></div>
+</div>
+
+<script>
+// Rules matrix
+const iamRules = {
+  inference: { decrypt: true, encrypt: true, delete: false },
+  analytics: { decrypt: false, encrypt: false, delete: false },
+  admin: { decrypt: true, encrypt: true, delete: true },
+  unknown: { decrypt: false, encrypt: false, delete: false },
+};
+const keyPolicyRules = {
+  inference: { decrypt: true, encrypt: true, delete: false },
+  analytics: { decrypt: true, encrypt: false, delete: false },
+  admin: { decrypt: true, encrypt: true, delete: true },
+  unknown: { decrypt: false, encrypt: false, delete: false },
+};
+// Condition: only VPC for decrypt
+const conditionPass = (action, where) => {
+  if (action === 'decrypt' && where === 'internet') return false;
+  return true;
+};
+
+const names = {
+  inference: 'Inference Service',
+  analytics: 'Analytics Service',
+  admin: 'Admin User',
+  unknown: 'Невідомий сервіс'
+};
+const actionNames = {
+  decrypt: 'kms:Decrypt',
+  encrypt: 'kms:Encrypt',
+  delete: 'kms:ScheduleKeyDeletion'
+};
+
+function evaluate() {
+  const who = document.getElementById('who').value;
+  const action = document.getElementById('action').value;
+  const where = document.getElementById('where').value;
+
+  const iam = iamRules[who]?.[action] ?? false;
+  const kp = keyPolicyRules[who]?.[action] ?? false;
+  const cond = conditionPass(action, where);
+
+  // All three must pass
+  const iamFailed = !iam;
+  const kpFailed = !kp;
+  const condFailed = !cond;
+  const stopped = iamFailed || kpFailed || condFailed;
+  const granted = !stopped;
+
+  let html = '';
+
+  // Gate 1: IAM
+  const iamCls = iamFailed ? 'fail' : (stopped && !iamFailed ? 'pass' : 'pass');
+  html += `<div class="gate ${iam ? 'pass' : 'fail'}">
+    <div class="g-icon">🛡️</div>
+    <div class="g-body">
+      <div class="g-title">Рівень 1: IAM Policy</div>
+      <div class="g-detail">Чи має <strong>${names[who]}</strong> дозвіл <code>${actionNames[action]}</code>?</div>
+    </div>
+    <div class="g-result">${iam ? '✓ Allow' : '✗ Deny'}</div>
+  </div>`;
+
+  html += `<div class="gate-arrow">${iamFailed ? '🚫' : '↓'}</div>`;
+
+  // Gate 2: Key Policy
+  const kpActive = !iamFailed;
+  html += `<div class="gate ${!kpActive ? 'skip' : (kp ? 'pass' : 'fail')}">
+    <div class="g-icon">🔑</div>
+    <div class="g-body">
+      <div class="g-title">Рівень 2: Key Policy</div>
+      <div class="g-detail">${kpActive ? `Чи дозволяє policy ключа цю операцію для <strong>${names[who]}</strong>?` : 'Не досягнуто — зупинено на IAM'}</div>
+    </div>
+    <div class="g-result">${!kpActive ? '—' : (kp ? '✓ Allow' : '✗ Deny')}</div>
+  </div>`;
+
+  html += `<div class="gate-arrow">${(iamFailed || kpFailed) ? '🚫' : '↓'}</div>`;
+
+  // Gate 3: Condition Keys
+  const condActive = !iamFailed && !kpFailed;
+  html += `<div class="gate ${!condActive ? 'skip' : (cond ? 'pass' : 'fail')}">
+    <div class="g-icon">🌐</div>
+    <div class="g-body">
+      <div class="g-title">Рівень 3: Condition Keys</div>
+      <div class="g-detail">${condActive ? `Запит з <strong>${where === 'vpc' ? 'VPC (внутрішня мережа)' : 'інтернету'}</strong>. ${action === 'decrypt' ? 'Decrypt дозволено лише з VPC.' : 'Немає обмежень за контекстом.'}` : 'Не досягнуто — зупинено раніше'}</div>
+    </div>
+    <div class="g-result">${!condActive ? '—' : (cond ? '✓ Pass' : '✗ Blocked')}</div>
+  </div>`;
+
+  html += `<div class="gate-arrow">↓</div>`;
+
+  // Final
+  html += `<div class="final ${granted ? 'granted' : 'denied'}">
+    <h3>${granted ? '✓ GRANTED' : '✗ DENIED'}</h3>
+    <p>${granted 
+      ? `${names[who]} може виконати ${actionNames[action]}` 
+      : `${names[who]} не може виконати ${actionNames[action]}`}</p>
+  </div>`;
+
+  document.getElementById('flow').innerHTML = html;
+
+  // Explanation
+  let exp = '';
+  if (iamFailed) {
+    exp = `<strong>Зупинено на IAM:</strong> ${names[who]} не має дозволу <code>${actionNames[action]}</code> в IAM policy. Навіть якщо key policy дозволяє — IAM блокує запит. Два рівні працюють за принципом AND: обидва мають дозволити.`;
+  } else if (kpFailed) {
+    exp = `<strong>IAM дозволяє, але Key Policy блокує:</strong> ${names[who]} має IAM-дозвіл, але policy самого ключа не дозволяє цю операцію. Це демонструє defense in depth — помилка на одному рівні не призводить до компрометації.`;
+  } else if (condFailed) {
+    exp = `<strong>IAM і Key Policy дозволяють, але Condition Key блокує:</strong> Decrypt дозволено лише з VPC endpoint. Запит з інтернету відхилений, навіть з правильними обліковими даними. Це захищає від сценарію, коли зловмисник викрадає IAM-credentials і використовує їх поза контрольованим середовищем.`;
+  } else {
+    exp = `<strong>Усі три рівні дозволили.</strong> IAM підтвердив права сервісу, Key Policy підтвердив дозвіл для цього ключа, Condition Key підтвердив контекст запиту. Кожна така операція записується в audit log (CloudTrail).`;
+  }
+  document.getElementById('explain').innerHTML = exp;
+}
+
+evaluate();
+</script>
+</body>
+</html>
