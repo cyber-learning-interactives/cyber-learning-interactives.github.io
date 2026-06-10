@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chain of Trust Explorer — PKI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:740px;margin-bottom:20px}
+.header h1{font-size:1.45rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.6}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#ede9fe;color:#7c5cbf;margin-bottom:10px}
+.wrap{width:100%;max-width:900px}
+
+/* Scenario bar */
+.scenarios{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.sbtn{padding:8px 14px;border:1.5px solid #e5e7eb;border-radius:10px;background:#fff;font-family:inherit;font-size:0.72rem;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px}
+.sbtn:hover{border-color:#7c5cbf;background:#faf5ff}
+.sbtn.on{border-color:#7c5cbf;background:#ede9fe;color:#5b21b6}
+
+/* Tree */
+.tree-area{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;margin-bottom:16px;min-height:340px}
+
+/* Levels */
+.level{display:flex;justify-content:center;gap:16px;margin-bottom:6px;position:relative}
+.level-label{position:absolute;left:0;top:50%;transform:translateY(-50%);font-size:0.58rem;font-weight:600;color:#d1d5db;text-transform:uppercase;letter-spacing:0.04em;writing-mode:vertical-lr;text-orientation:mixed}
+
+/* Connector lines */
+.connectors{display:flex;justify-content:center;gap:16px;margin-bottom:6px;height:24px;position:relative}
+.vline{width:2px;background:#d1d5db;margin:0 auto;height:100%;transition:background .4s}
+.vline.broken{background:#ef4444;background:repeating-linear-gradient(0deg,#ef4444,#ef4444 3px,transparent 3px,transparent 6px)}
+.vline.trusted{background:#10b981}
+
+/* Cert node */
+.cert{width:200px;padding:12px 14px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;cursor:pointer;transition:all .3s;position:relative;text-align:center}
+.cert:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.06)}
+.cert.selected{border-color:#7c5cbf;box-shadow:0 0 0 3px rgba(124,92,191,.15)}
+.cert.trusted{border-color:#10b981;background:#ecfdf5}
+.cert.revoked{border-color:#ef4444;background:#fef2f2;opacity:0.7}
+.cert.revoked::after{content:'REVOKED';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-15deg);font-size:0.9rem;font-weight:900;color:#ef4444;opacity:0.3;pointer-events:none;letter-spacing:0.1em}
+.cert.expired{border-color:#f59e0b;background:#fffbeb;opacity:0.7}
+.cert.expired::after{content:'EXPIRED';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-15deg);font-size:0.9rem;font-weight:900;color:#f59e0b;opacity:0.3;pointer-events:none;letter-spacing:0.1em}
+.cert .c-icon{font-size:1.2rem;margin-bottom:2px}
+.cert .c-name{font-size:0.76rem;font-weight:700;margin-bottom:2px}
+.cert .c-type{font-size:0.58rem;font-weight:600;padding:2px 8px;border-radius:6px;display:inline-block;margin-bottom:4px}
+.cert .c-detail{font-size:0.6rem;color:#6b7280;line-height:1.3}
+
+/* Detail panel */
+.detail{background:#fff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;margin-bottom:16px}
+.detail-header{padding:14px 20px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:10px}
+.detail-header h3{font-size:0.9rem;font-weight:700;flex:1}
+.detail-header .status{font-size:0.68rem;font-weight:600;padding:3px 12px;border-radius:8px}
+.detail-body{padding:16px 20px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dcell{padding:10px 12px;background:#f9fafb;border-radius:8px;border:1px solid #f3f4f6}
+.dcell.full{grid-column:1/-1}
+.dcell .dl{font-size:0.6rem;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px}
+.dcell .dv{font-size:0.76rem;color:#1a1a2e;line-height:1.4}
+.dcell code{font-family:'JetBrains Mono',monospace;font-size:0.7rem;background:#ede9fe;padding:1px 5px;border-radius:3px;color:#5b21b6}
+
+/* Lesson */
+.lesson{padding:14px 18px;border-radius:12px;border:1.5px solid;font-size:0.8rem;line-height:1.6}
+.lesson strong{color:inherit}
+.lesson.green{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+.lesson.red{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+.lesson.amber{background:#fffbeb;border-color:#fde68a;color:#92400e}
+.lesson.blue{background:#eff6ff;border-color:#bfdbfe;color:#1e40af}
+
+/* Verification steps */
+.verify-steps{margin-top:12px}
+.vstep{display:flex;align-items:flex-start;gap:8px;padding:6px 0;font-size:0.75rem;line-height:1.4}
+.vstep .vi{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:#fff;flex-shrink:0;margin-top:1px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 6 · РОЗДІЛИ 1, 3, 5</div>
+  <h1>Chain of Trust Explorer</h1>
+  <p>Довіра до сертифіката — це довіра до CA, яка його підписала. Ланцюг будується від leaf certificate через Intermediate CA до Root CA у trust store. Оберіть сценарій, щоб побачити, як довіра працює і як вона руйнується.</p>
+</div>
+
+<div class="wrap">
+  <div class="scenarios" id="scenarios"></div>
+  <div class="tree-area" id="tree"></div>
+  <div class="detail" id="detail" style="display:none"></div>
+  <div id="lesson"></div>
+</div>
+
+<script>
+const scenariosDef = [
+  { id: 'normal', icon: '✅', label: 'Штатний ланцюг', desc: 'Все працює' },
+  { id: 'revoke-intermediate', icon: '🔴', label: 'Компрометація CA', desc: 'DigiNotar (2011)' },
+  { id: 'expired-leaf', icon: '⏰', label: 'Прострочений сертифікат', desc: 'Production outage' },
+  { id: 'self-signed', icon: '🔓', label: 'Self-signed', desc: 'Без ланцюга довіри' },
+  { id: 'verify', icon: '🔍', label: 'Що перевіряє клієнт', desc: 'Крок за кроком' },
+];
+
+let curScenario = 'normal';
+let selectedCert = null;
+
+const certs = {
+  root: {
+    icon: '🏛️', name: 'DigiCert Global Root G2',
+    type: 'Root CA', typeBg: '#7c5cbf', typeColor: '#fff',
+    subject: 'CN=DigiCert Global Root G2, O=DigiCert Inc',
+    issuer: 'Self-signed (самопідписаний)',
+    validity: '2013–2038 (25 років)',
+    keyType: 'RSA 2048',
+    location: 'Trust store ОС і браузера',
+    note: 'Кореневий CA зберігається offline (HSM без мережі). Використовується лише для підпису Intermediate CA.'
+  },
+  intermediate: {
+    icon: '🔗', name: 'DigiCert SHA2 Secure Server CA',
+    type: 'Intermediate CA', typeBg: '#3b82f6', typeColor: '#fff',
+    subject: 'CN=DigiCert SHA2 Secure Server CA',
+    issuer: 'CN=DigiCert Global Root G2',
+    validity: '2020–2030 (10 років)',
+    keyType: 'RSA 2048',
+    location: 'Надається разом з leaf у TLS handshake',
+    note: 'Проміжний CA видає leaf-сертифікати. Якщо скомпрометований — відкликається лише він, Root CA залишається довіреним.'
+  },
+  leaf1: {
+    icon: '🌐', name: 'hrapi.company.com',
+    type: 'Leaf (API Gateway)', typeBg: '#10b981', typeColor: '#fff',
+    subject: 'CN=hrapi.company.com, SAN=*.company.com',
+    issuer: 'CN=DigiCert SHA2 Secure Server CA',
+    validity: '2025-01 → 2026-01 (1 рік)',
+    keyType: 'ECDSA P-256',
+    location: 'API Gateway (nginx / ALB)',
+    note: 'Публічний DV-сертифікат для зовнішнього HTTPS. Автоматичне поновлення через ACME.'
+  },
+  leaf2: {
+    icon: '🤖', name: 'inference.internal',
+    type: 'Leaf (mTLS)', typeBg: '#14b8a6', typeColor: '#fff',
+    subject: 'spiffe://cluster/ns/prod/sa/inference',
+    issuer: 'Internal CA (Istio Citadel)',
+    validity: '24 години (auto-rotate)',
+    keyType: 'ECDSA P-256',
+    location: 'Sidecar proxy (Envoy)',
+    note: 'Внутрішній mTLS-сертифікат. Видається автоматично service mesh, ротується кожні 24 години. Окремий internal CA.'
+  }
+};
+
+function renderScenarios() {
+  document.getElementById('scenarios').innerHTML = scenariosDef.map(s =>
+    `<button class="sbtn ${s.id===curScenario?'on':''}" onclick="pickScenario('${s.id}')">
+      <span>${s.icon}</span> ${s.label}
+    </button>`
+  ).join('');
+}
+
+function certNode(id, state = 'trusted') {
+  const c = certs[id];
+  const cls = state === 'trusted' ? 'trusted' : state === 'revoked' ? 'revoked' : state === 'expired' ? 'expired' : '';
+  return `<div class="cert ${cls} ${selectedCert===id?'selected':''}" onclick="selectCert('${id}')">
+    <div class="c-icon">${c.icon}</div>
+    <div class="c-name">${c.name}</div>
+    <div class="c-type" style="background:${c.typeBg};color:${c.typeColor}">${c.type}</div>
+    <div class="c-detail">${c.subject.split(',')[0]}</div>
+  </div>`;
+}
+
+function vline(state = 'trusted') {
+  return `<div style="width:200px;display:flex;justify-content:center"><div class="vline ${state}"></div></div>`;
+}
+
+function renderTree() {
+  let html = '';
+  const s = curScenario;
+
+  if (s === 'self-signed') {
+    html += `<div style="text-align:center;margin-bottom:16px"><span style="font-size:0.72rem;font-weight:600;color:#9ca3af">Trust Store (ОС / браузер)</span></div>`;
+    html += `<div class="level" style="margin-bottom:24px">${certNode('root', 'trusted')}<div style="width:40px"></div><div class="cert expired" onclick="selectCert('selfmade')" style="border-style:dashed;border-color:#f59e0b">
+      <div class="c-icon">⚠️</div><div class="c-name">dev.local (self-signed)</div>
+      <div class="c-type" style="background:#f59e0b;color:#fff">Self-signed</div>
+      <div class="c-detail">Не в trust store</div>
+    </div></div>`;
+  } else {
+    // Trust store label
+    html += `<div style="text-align:center;margin-bottom:8px"><span style="font-size:0.72rem;font-weight:600;color:#9ca3af">Trust Store (ОС / браузер)</span></div>`;
+
+    // Root level
+    const rootState = 'trusted';
+    html += `<div class="level">${certNode('root', rootState)}</div>`;
+
+    // Connector root → intermediate
+    const intState = s === 'revoke-intermediate' ? 'revoked' : 'trusted';
+    const lineRI = s === 'revoke-intermediate' ? 'broken' : 'trusted';
+    html += `<div class="connectors">${vline(lineRI)}</div>`;
+
+    // Intermediate level
+    html += `<div class="level">${certNode('intermediate', intState)}</div>`;
+
+    // Connectors intermediate → leaves
+    const leafState1 = (s === 'revoke-intermediate') ? 'revoked' : (s === 'expired-leaf' ? 'expired' : 'trusted');
+    const leafState2 = s === 'revoke-intermediate' ? 'revoked' : 'trusted';
+    const lineIL = s === 'revoke-intermediate' ? 'broken' : 'trusted';
+    html += `<div class="connectors" style="gap:80px">${vline(lineIL)}${vline(s === 'revoke-intermediate' ? 'broken' : 'trusted')}</div>`;
+
+    // Leaf level
+    html += `<div class="level">${certNode('leaf1', leafState1)}${certNode('leaf2', leafState2)}</div>`;
+  }
+
+  document.getElementById('tree').innerHTML = html;
+}
+
+function selectCert(id) {
+  selectedCert = id;
+  renderTree();
+
+  if (id === 'selfmade') {
+    document.getElementById('detail').style.display = 'block';
+    document.getElementById('detail').innerHTML = `
+      <div class="detail-header">
+        <h3>⚠️ Self-signed certificate: dev.local</h3>
+        <span class="status" style="background:#fef3c7;color:#92400e">Не довірений</span>
+      </div>
+      <div class="detail-body"><div class="detail-grid">
+        <div class="dcell"><div class="dl">Subject</div><div class="dv"><code>CN=dev.local</code></div></div>
+        <div class="dcell"><div class="dl">Issuer</div><div class="dv"><code>CN=dev.local</code> (сам себе)</div></div>
+        <div class="dcell full"><div class="dl">Проблема</div><div class="dv">Subject = Issuer. Сертифікат засвідчує сам себе. Клієнт не може перевірити ланцюг довіри, бо його немає. Будь-хто може створити такий сертифікат для будь-якого імені за секунди.</div></div>
+        <div class="dcell full"><div class="dl">Коли допустимо</div><div class="dv">Локальна розробка, тестування. Ніколи — у production. Наявність self-signed cert у production = <code>verify=false</code> у коді, тобто повне вимкнення перевірки.</div></div>
+      </div></div>`;
+    return;
+  }
+
+  const c = certs[id];
+  if (!c) return;
+  const s = curScenario;
+  let status = '✓ Довірений', statusBg = '#d1fae5', statusColor = '#065f46';
+
+  if (s === 'revoke-intermediate' && (id === 'intermediate' || id === 'leaf1' || id === 'leaf2')) {
+    status = '✗ Відкликаний'; statusBg = '#fecaca'; statusColor = '#991b1b';
+  }
+  if (s === 'expired-leaf' && id === 'leaf1') {
+    status = '⏰ Прострочений'; statusBg = '#fde68a'; statusColor = '#92400e';
+  }
+
+  document.getElementById('detail').style.display = 'block';
+  document.getElementById('detail').innerHTML = `
+    <div class="detail-header">
+      <h3>${c.icon} ${c.name}</h3>
+      <span class="status" style="background:${statusBg};color:${statusColor}">${status}</span>
+    </div>
+    <div class="detail-body"><div class="detail-grid">
+      <div class="dcell"><div class="dl">Subject</div><div class="dv"><code>${c.subject}</code></div></div>
+      <div class="dcell"><div class="dl">Issuer</div><div class="dv"><code>${c.issuer}</code></div></div>
+      <div class="dcell"><div class="dl">Термін дії</div><div class="dv">${c.validity}</div></div>
+      <div class="dcell"><div class="dl">Ключ</div><div class="dv">${c.keyType}</div></div>
+      <div class="dcell"><div class="dl">Де знаходиться</div><div class="dv">${c.location}</div></div>
+      <div class="dcell"><div class="dl">Примітка</div><div class="dv">${c.note}</div></div>
+    </div></div>`;
+}
+
+function renderLesson() {
+  const lessons = {
+    normal: { cls: 'green', text: '<strong>Штатний ланцюг довіри:</strong> клієнт перевіряє leaf → intermediate → root. Root CA знаходиться у trust store. Кожна ланка підтверджує наступну. Довіра транзитивна: якщо ви довіряєте Root CA, ви довіряєте всім сертифікатам, які він (через intermediate) підписав. Натисніть на будь-який вузол, щоб побачити його поля.' },
+    'revoke-intermediate': { cls: 'red', text: '<strong>DigiNotar (2011):</strong> Intermediate CA був скомпрометований. Зловмисник видав фальшиві сертифікати для google.com, yahoo.com та інших доменів і використовував їх для MITM-атаки на іранських користувачів. DigiNotar була видалена з trust store усіх браузерів. Усі сертифікати під нею стали недовіреними — навіть ті, які були видані легітимно. Ізоляція через Intermediate CA обмежила шкоду: Root CA інших ієрархій не постраждав.' },
+    'expired-leaf': { cls: 'amber', text: '<strong>Прострочений сертифікат — production outage.</strong> У 2020 році Microsoft Teams, Spotify та інші великі сервіси зазнали збоїв через прострочені TLS-сертифікати. Якщо сертифікат прострочений, клієнт відхиляє з\'єднання — сервіс стає повністю недоступним. Рішення: автоматичне поновлення через ACME (Let\'s Encrypt — кожні 90 днів) або через service mesh (Istio — кожні 24 години).' },
+    'self-signed': { cls: 'amber', text: '<strong>Self-signed = немає ланцюга довіри.</strong> Сертифікат засвідчує сам себе. Клієнт не може перевірити, кому належить ключ, тому що немає третьої сторони, якій він довіряє. Щоб такий сертифікат працював, потрібно або додати його в trust store вручну, або вимкнути перевірку (<code>verify=false</code>). Обидва варіанти неприйнятні для production.' },
+    verify: { cls: 'blue', text: '' },
+  };
+
+  if (curScenario === 'verify') {
+    document.getElementById('lesson').innerHTML = `<div class="lesson blue">
+      <strong>Що перевіряє клієнт під час TLS handshake (крок за кроком):</strong>
+      <div class="verify-steps">
+        <div class="vstep"><div class="vi" style="background:#7c5cbf">1</div><div><strong>Ланцюг підписів.</strong> Підпис leaf перевіряється public key Intermediate CA. Підпис Intermediate — public key Root CA. Root CA — у trust store.</div></div>
+        <div class="vstep"><div class="vi" style="background:#3b82f6">2</div><div><strong>Термін дії.</strong> Поле Validity: Not Before ≤ зараз ≤ Not After. Прострочений = відхилення.</div></div>
+        <div class="vstep"><div class="vi" style="background:#14b8a6">3</div><div><strong>Ім'я сервера.</strong> CN або SAN у сертифікаті повинен збігатися з доменом, до якого підключається клієнт.</div></div>
+        <div class="vstep"><div class="vi" style="background:#f59e0b">4</div><div><strong>Статус відкликання.</strong> OCSP або CRL: чи не відкликаний сертифікат. OCSP Stapling — сервер прикріплює свіжу відповідь до handshake.</div></div>
+        <div class="vstep"><div class="vi" style="background:#ef4444">5</div><div><strong>Key Usage / Extensions.</strong> Чи дозволено використовувати ключ для TLS. Basic Constraints: leaf не може видавати інші сертифікати.</div></div>
+        <div class="vstep"><div class="vi" style="background:#10b981">6</div><div><strong>Certificate Transparency.</strong> Наявність SCT підтверджує, що сертифікат зареєстрований у публічних CT-логах. Chrome і Safari вимагають цього.</div></div>
+      </div>
+      <p style="margin-top:10px"><strong>Якщо будь-який крок не пройшов — з'єднання відхиляється.</strong> <code>verify=false</code> у коді вимикає всі ці перевірки одночасно.</p>
+    </div>`;
+    return;
+  }
+
+  const l = lessons[curScenario];
+  document.getElementById('lesson').innerHTML = `<div class="lesson ${l.cls}">${l.text}</div>`;
+}
+
+function pickScenario(id) {
+  curScenario = id;
+  selectedCert = null;
+  document.getElementById('detail').style.display = 'none';
+  renderScenarios();
+  renderTree();
+  renderLesson();
+}
+
+renderScenarios();
+renderTree();
+renderLesson();
+</script>
+</body>
+</html>
