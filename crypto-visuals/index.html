@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crypto Visuals — Інтерактивні діаграми</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;padding:48px 24px}
+.wrap{max-width:720px;margin:0 auto}
+h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
+.sub{font-size:0.85rem;color:#6b7280;margin-bottom:32px;line-height:1.5}
+.card{display:block;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px 24px;margin-bottom:12px;text-decoration:none;color:inherit;transition:box-shadow .2s,border-color .2s}
+.card:hover{border-color:#7c5cbf;box-shadow:0 2px 12px rgba(124,92,191,.12)}
+.card .topic{font-size:0.65rem;font-weight:600;color:#7c5cbf;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px}
+.card h2{font-size:1rem;font-weight:600;margin-bottom:4px}
+.card p{font-size:0.8rem;color:#6b7280;line-height:1.4}
+.badge{display:inline-block;font-size:0.6rem;font-weight:600;padding:2px 8px;border-radius:8px;background:#fef3c7;color:#92400e;margin-left:8px}
+.soon{opacity:0.5;pointer-events:none}
+.soon .badge{background:#f3f4f6;color:#9ca3af}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Crypto Visuals</h1>
+  <p class="sub">Інтерактивні діаграми до курсу «Криптографія та захист даних». 10 візуалізацій, що доповнюють конспекти і полегшують сприйняття ключових концепцій.</p>
+
+  <a class="card" href="01-data-journey.html">
+    <div class="topic">Тема 1 · Розділ 10</div>
+    <h2>Data Journey Map</h2>
+    <p>Як одне резюме породжує 7 різних форм даних у компонентах HR AI-системи.</p>
+  </a>
+
+  <div class="card soon">
+    <div class="topic">Тема 4 · Розділ 4</div>
+    <h2>Encryption Modes Simulator <span class="badge">Скоро</span></h2>
+    <p>ECB → CBC → CTR → GCM: анімація потоку блоків і порівняння властивостей.</p>
+  </div>
+
+  <div class="card soon">
+    <div class="topic">Тема 4 · Розділ 7.3</div>
+    <h2>Envelope Encryption Flow <span class="badge">Скоро</span></h2>
+    <p>KMS → KEK → DEK → дані: покрокова анімація дворівневої схеми ключів.</p>
+  </div>
+
+  <div class="card soon">
+    <div class="topic">Тема 5 · Розділ 8</div>
+    <h2>TLS 1.3 Handshake <span class="badge">Скоро</span></h2>
+    <p>Як ECDHE, сертифікати і AES працюють разом у реальному з'єднанні.</p>
+  </div>
+
+  <div class="card soon">
+    <div class="topic">Тема 5 · Розділ 6</div>
+    <h2>Hash Decision Tree <span class="badge">Скоро</span></h2>
+    <p>SHA-256 чи Argon2? HMAC чи підпис? Правильний інструмент для кожної задачі.</p>
+  </div>
+
+  <div class="card soon">
+    <div class="topic">Тема 7 · Розділ 2</div>
+    <h2>Sign vs Verify + MAC vs Signature <span class="badge">Скоро</span></h2>
+    <p>Як створюється і перевіряється підпис. Чому MAC не доводить авторство.</p>
+  </div>
+
+  <div class="card soon">
+    <div class="topic">Тема 9 · Розділ 4.2</div>
+    <h2>TLS Termination Explorer <span class="badge">Скоро</span></h2>
+    <p>Де саме дані «оголюються» після розшифрування на load balancer.</p>
+  </div>
+
+  <div class="card soon">
+    <div class="topic">Тема 10 · Розділ 3</div>
+    <h2>KMS Access Decision Flow <span class="badge">Скоро</span></h2>
+    <p>IAM policy → Key policy → Condition keys → Grant/Deny: як KMS вирішує.</p>
+  </div>
+
+  <div class="card soon">
+    <div class="topic">Тема 11 · Розділ 4</div>
+    <h2>Nonce Reuse Attack <span class="badge">Скоро</span></h2>
+    <p>Чому повторення nonce у GCM призводить до повної компрометації.</p>
+  </div>
+
+  <div class="card soon">
+    <div class="topic">Тема 12 · Розділ 2</div>
+    <h2>Data Multiplication Map <span class="badge">Скоро</span></h2>
+    <p>Як AI-система множить форми одних даних: файл → embedding → промпт → лог.</p>
+  </div>
+</div>
+</body>
+</html>
