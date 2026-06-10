@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attack Surface Explorer — HR AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:740px;margin-bottom:20px}
+.header h1{font-size:1.45rem;font-weight:700;margin-bottom:6px}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.6}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#fce7f3;color:#9d174d;margin-bottom:10px}
+.wrap{width:100%;max-width:900px}
+
+/* Component grid */
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+@media(max-width:640px){.grid{grid-template-columns:repeat(2,1fr)}}
+.comp{padding:12px;border:2px solid #e5e7eb;border-radius:12px;cursor:pointer;background:#fff;transition:all .2s;text-align:center;position:relative}
+.comp:hover{border-color:#7c5cbf;transform:translateY(-2px)}
+.comp.on{border-color:var(--c);background:var(--bg)}
+.comp .risk-badge{position:absolute;top:6px;right:8px;width:10px;height:10px;border-radius:50%}
+.comp .c-icon{font-size:1.2rem;margin-bottom:4px}
+.comp .c-name{font-size:0.72rem;font-weight:700;line-height:1.2}
+
+/* Detail */
+.detail{background:#fff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden}
+.detail-header{padding:16px 22px;border-bottom:1px solid #e5e7eb}
+.detail-header h3{font-size:0.92rem;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.detail-header p{font-size:0.78rem;color:#6b7280}
+
+.vectors{padding:16px 22px}
+.vector{padding:12px 14px;border-radius:10px;border:1.5px solid #e5e7eb;margin-bottom:8px;transition:all .3s}
+.vector:hover{border-color:#f72585}
+.v-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.v-sev{font-size:0.6rem;font-weight:700;padding:2px 8px;border-radius:6px;color:#fff}
+.v-name{font-size:0.78rem;font-weight:700;flex:1}
+.v-topic{font-size:0.6rem;font-weight:600;color:#9ca3af}
+.v-desc{font-size:0.74rem;color:#4b5563;line-height:1.5;margin-bottom:6px}
+.v-controls{display:flex;gap:6px;flex-wrap:wrap}
+.v-ctrl{font-size:0.62rem;font-weight:600;padding:2px 8px;border-radius:6px}
+.v-ctrl.crypto{background:#d1fae5;color:#065f46}
+.v-ctrl.other{background:#f3f4f6;color:#6b7280}
+
+.stats{display:flex;gap:12px;margin-top:16px}
+.stat{flex:1;text-align:center;padding:10px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:10px}
+.stat .sn{font-size:1.2rem;font-weight:700}
+.stat .sl{font-size:0.62rem;color:#6b7280;margin-top:2px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 13</div>
+  <h1>Attack Surface Explorer — HR AI</h1>
+  <p>Повна поверхня атаки HR AI-системи: натисніть на компонент, щоб побачити вектори атак із різних тем курсу і контролі для кожного.</p>
+</div>
+
+<div class="wrap">
+  <div class="grid" id="grid"></div>
+  <div class="detail" id="detail" style="display:none"></div>
+  <div class="stats">
+    <div class="stat"><div class="sn">8</div><div class="sl">Компонентів</div></div>
+    <div class="stat"><div class="sn" style="color:#ef4444">24</div><div class="sl">Векторів атак</div></div>
+    <div class="stat"><div class="sn" style="color:#10b981">14</div><div class="sl">Тем курсу задіяно</div></div>
+  </div>
+</div>
+
+<script>
+const components = [
+  { id:'s3', icon:'🗄️', name:'Object Storage (S3)', color:'#14b8a6', bg:'#ecfdf5', risk:'#f59e0b',
+    desc:'CV-файли кандидатів. SSE-KMS (envelope encryption).',
+    vectors:[
+      {sev:'high',sevBg:'#ef4444',name:'Надмірний IAM до ключа',desc:'23 сервіси мають kms:Decrypt. Компрометація будь-якого = доступ до всіх CV.',topic:'Т2, Т10',ctrls:[{t:'Key policy segmentation',c:'crypto'},{t:'Least privilege IAM',c:'other'}]},
+      {sev:'med',sevBg:'#f59e0b',name:'Відсутня key rotation',desc:'Один KEK використовується 3+ роки без ротації. Накопичення ризику.',topic:'Т4, Т10',ctrls:[{t:'Auto-rotation KEK',c:'crypto'},{t:'Re-encryption DEK',c:'crypto'}]},
+    ]},
+  { id:'db', icon:'🗃️', name:'PostgreSQL', color:'#3b82f6', bg:'#dbeafe', risk:'#ef4444',
+    desc:'Профілі, оцінки, ранжування кандидатів. TDE + column-level.',
+    vectors:[
+      {sev:'high',sevBg:'#ef4444',name:'Надлишковий доступ на рівні застосунку',desc:'Відсутній row-level security. Будь-який запит бачить усі записи.',topic:'Т2, Т10',ctrls:[{t:'Row-level security',c:'other'},{t:'Column encryption',c:'crypto'}]},
+      {sev:'med',sevBg:'#f59e0b',name:'SQL injection → дані у відкритому вигляді',desc:'TDE не захищає від SQL injection: дані дешифруються для застосунку.',topic:'Т4, Т11',ctrls:[{t:'Parameterized queries',c:'other'},{t:'WAF',c:'other'}]},
+      {sev:'high',sevBg:'#ef4444',name:'Незашифрований внутрішній трафік',desc:'SQL-запити з PII передаються без TLS між API і БД.',topic:'Т9',ctrls:[{t:'TLS/mTLS до PostgreSQL',c:'crypto'},{t:'sslmode=verify-full',c:'crypto'}]},
+    ]},
+  { id:'vec', icon:'🔢', name:'Vector DB', color:'#f72585', bg:'#fce7f3', risk:'#ef4444',
+    desc:'Embeddings резюме. Часто без шифрування.',
+    vectors:[
+      {sev:'crit',sevBg:'#dc2626',name:'Відсутність шифрування і retention',desc:'Embeddings зберігаються plain-text, без обмеження доступу, без політики видалення.',topic:'Т2, Т8',ctrls:[{t:'BYOK/FDE',c:'crypto'},{t:'Namespace isolation',c:'other'}]},
+      {sev:'high',sevBg:'#ef4444',name:'Embedding inversion / re-identification',desc:'З вектора можна відновити або ідентифікувати текст через similarity search.',topic:'Т12',ctrls:[{t:'Access control',c:'other'},{t:'Differential privacy',c:'other'}]},
+    ]},
+  { id:'llm', icon:'🤖', name:'LLM API (зовнішній)', color:'#7c5cbf', bg:'#ede9fe', risk:'#ef4444',
+    desc:'Промпти з текстом резюме → зовнішній провайдер.',
+    vectors:[
+      {sev:'crit',sevBg:'#dc2626',name:'PII виходить за периметр',desc:'Повний текст резюме передається третій стороні. TLS захищає канал, але не контролює використання.',topic:'Т2, Т9',ctrls:[{t:'TLS 1.3',c:'crypto'},{t:'DPA',c:'other'},{t:'Data minimization',c:'other'}]},
+      {sev:'high',sevBg:'#ef4444',name:'Prompt injection',desc:'Прихований текст у резюме маніпулює результатами моделі. OWASP #1 для LLM.',topic:'Т12',ctrls:[{t:'Input validation',c:'other'},{t:'Output monitoring',c:'other'}]},
+      {sev:'med',sevBg:'#f59e0b',name:'System prompt leakage',desc:'Витік бізнес-логіки і критеріїв оцінки через відповіді моделі.',topic:'Т12',ctrls:[{t:'Output filtering',c:'other'},{t:'Prompt hardening',c:'other'}]},
+    ]},
+  { id:'logs', icon:'📋', name:'Логи', color:'#f59e0b', bg:'#fffbeb', risk:'#ef4444',
+    desc:'Prompt-логи, response-логи, дії користувачів.',
+    vectors:[
+      {sev:'crit',sevBg:'#dc2626',name:'PII у відкритому вигляді',desc:'Тіньові копії: дані з основного сховища дублюються в логах без маскування.',topic:'Т2',ctrls:[{t:'KMS для логів',c:'crypto'},{t:'PII masking',c:'other'},{t:'Retention policy',c:'other'}]},
+      {sev:'high',sevBg:'#ef4444',name:'Широкий доступ до логів',desc:'DevOps, support, analytics бачать логи з PII кандидатів.',topic:'Т10',ctrls:[{t:'RBAC для логів',c:'other'},{t:'Окремий KEK',c:'crypto'}]},
+      {sev:'med',sevBg:'#f59e0b',name:'Відсутність підписів',desc:'Логи можна модифікувати. Немає невідмовності для audit.',topic:'Т7',ctrls:[{t:'Цифровий підпис (EdDSA)',c:'crypto'},{t:'Append-only storage',c:'other'}]},
+    ]},
+  { id:'backup', icon:'💾', name:'Бекапи', color:'#6b7280', bg:'#f3f4f6', risk:'#f59e0b',
+    desc:'Повні копії системи. Довгий retention.',
+    vectors:[
+      {sev:'high',sevBg:'#ef4444',name:'Неузгоджений retention',desc:'Дані видалені з основної системи, але залишаються в бекапах роками.',topic:'Т2, Т10',ctrls:[{t:'Crypto-shredding',c:'crypto'},{t:'Aligned retention',c:'other'}]},
+      {sev:'med',sevBg:'#f59e0b',name:'Інший рівень доступу',desc:'Бекапи мають ширші права доступу, ніж основне сховище.',topic:'Т10',ctrls:[{t:'Окремий KEK для бекапів',c:'crypto'},{t:'Dedicated IAM',c:'other'}]},
+    ]},
+  { id:'runtime', icon:'⚡', name:'Runtime', color:'#ef4444', bg:'#fef2f2', risk:'#f59e0b',
+    desc:'Дані у пам\'яті під час обробки.',
+    vectors:[
+      {sev:'med',sevBg:'#f59e0b',name:'Дані у відкритому вигляді в пам\'яті',desc:'Під час inference дані дешифровані і доступні процесу.',topic:'Т1, Т2',ctrls:[{t:'Process isolation',c:'other'},{t:'Memory encryption (SEV)',c:'crypto'}]},
+      {sev:'med',sevBg:'#f59e0b',name:'Кешування і temp-файли',desc:'Дані можуть записуватися у тимчасові файли без шифрування.',topic:'Т2',ctrls:[{t:'Encrypted temp storage',c:'crypto'},{t:'Secure cleanup',c:'other'}]},
+    ]},
+  { id:'model', icon:'🧠', name:'Модель (fine-tuned)', color:'#9d174d', bg:'#fce7f3', risk:'#f59e0b',
+    desc:'Ваги моделі, навчені на корпусі резюме.',
+    vectors:[
+      {sev:'high',sevBg:'#ef4444',name:'Training data memorization',desc:'Модель може відтворювати фрагменти резюме. Не підпадає під стандартні механізми видалення.',topic:'Т12',ctrls:[{t:'Деперсоналізація dataset',c:'other'},{t:'Differential privacy',c:'other'}]},
+      {sev:'med',sevBg:'#f59e0b',name:'Model poisoning',desc:'Модифікація навчальних даних для маніпуляції результатами scoring.',topic:'Т12, Т13',ctrls:[{t:'Data integrity (hash)',c:'crypto'},{t:'Digital signature артефактів',c:'crypto'}]},
+    ]},
+];
+
+let selected = null;
+function renderGrid(){
+  document.getElementById('grid').innerHTML = components.map(c =>
+    `<div class="comp ${selected===c.id?'on':''}" style="--c:${c.color};--bg:${c.bg}" onclick="pick('${c.id}')">
+      <div class="risk-badge" style="background:${c.risk}"></div>
+      <div class="c-icon">${c.icon}</div>
+      <div class="c-name">${c.name}</div>
+    </div>`
+  ).join('');
+}
+
+function pick(id){
+  selected = id;
+  renderGrid();
+  const c = components.find(x=>x.id===id);
+  let html = `<div class="detail-header"><h3>${c.icon} ${c.name}</h3><p>${c.desc}</p></div><div class="vectors">`;
+  c.vectors.forEach(v => {
+    html += `<div class="vector">
+      <div class="v-top">
+        <span class="v-sev" style="background:${v.sevBg}">${v.sev.toUpperCase()}</span>
+        <span class="v-name">${v.name}</span>
+        <span class="v-topic">${v.topic}</span>
+      </div>
+      <div class="v-desc">${v.desc}</div>
+      <div class="v-controls">${v.ctrls.map(ct=>`<span class="v-ctrl ${ct.c}">${ct.c==='crypto'?'🔑':'🛡️'} ${ct.t}</span>`).join('')}</div>
+    </div>`;
+  });
+  html += '</div>';
+  const det = document.getElementById('detail');
+  det.style.display = 'block';
+  det.innerHTML = html;
+}
+
+renderGrid();
+</script>
+</body>
+</html>

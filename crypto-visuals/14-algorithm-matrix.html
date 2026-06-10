@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Algorithm Decision Matrix — Який алгоритм для якої задачі</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:740px;margin-bottom:24px}
+.header h1{font-size:1.45rem;font-weight:700;margin-bottom:6px}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.6}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#ede9fe;color:#7c5cbf;margin-bottom:10px}
+.wrap{width:100%;max-width:860px}
+
+.tasks{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+@media(max-width:640px){.tasks{grid-template-columns:repeat(2,1fr)}}
+.task{padding:14px;border:2px solid #e5e7eb;border-radius:12px;cursor:pointer;text-align:center;background:#fff;transition:all .2s}
+.task:hover{border-color:#7c5cbf;background:#faf5ff}
+.task.on{border-color:var(--c);background:var(--bg)}
+.task .t-icon{font-size:1.3rem;margin-bottom:4px}
+.task .t-name{font-size:0.78rem;font-weight:700}
+
+.result{background:#fff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden}
+.result-header{padding:16px 22px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:10px}
+.result-header h3{font-size:0.92rem;font-weight:700;flex:1}
+.cols3{display:grid;grid-template-columns:1fr 1fr 1fr;padding:16px 22px;gap:12px}
+.rcol{padding:12px;border-radius:10px;border:2px solid}
+.rcol h4{font-size:0.72rem;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+.rcol .algo{font-family:'JetBrains Mono',monospace;font-size:0.78rem;font-weight:600;display:block;margin-bottom:3px}
+.rcol .adesc{font-size:0.7rem;color:#4b5563;line-height:1.4}
+.rcol.rec{border-color:#10b981;background:#ecfdf5}
+.rcol.rec h4{color:#065f46}
+.rcol.alt{border-color:#f59e0b;background:#fffbeb}
+.rcol.alt h4{color:#92400e}
+.rcol.bad{border-color:#ef4444;background:#fef2f2}
+.rcol.bad h4{color:#991b1b}
+.rcol.bad .algo{text-decoration:line-through;color:#ef4444}
+
+.detail{padding:16px 22px;border-top:1px solid #e5e7eb}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dcell{padding:10px 12px;background:#f9fafb;border-radius:8px;border:1px solid #f3f4f6}
+.dcell .dl{font-size:0.6rem;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px}
+.dcell .dv{font-size:0.76rem;color:#1a1a2e;line-height:1.4}
+.dcell.full{grid-column:1/-1}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 8 · РОЗДІЛ 2</div>
+  <h1>Algorithm Decision Matrix</h1>
+  <p>Зведена карта рішень: який алгоритм для якої задачі, що є прийнятною альтернативою, і чого не використовувати у нових системах.</p>
+</div>
+
+<div class="wrap">
+  <div class="tasks" id="tasks"></div>
+  <div id="result"></div>
+</div>
+
+<script>
+const data = [
+  { id:'rest', icon:'🗄️', name:'Шифрування at rest', color:'#14b8a6', bg:'#ecfdf5',
+    rec:{algo:'AES-256-GCM',desc:'AEAD — конфіденційність + цілісність + автентичність одночасно. Стандарт для SSE-KMS, TDE, VeraCrypt.'},
+    alt:{algo:'AES-256-CBC (legacy)',desc:'Забезпечує лише конфіденційність. Є у старих системах. Калина (ДСТУ 7624) — для держсистем України.'},
+    bad:{algo:'DES, 3DES, ГОСТ 28147',desc:'DES зламаний з 1998 (Deep Crack). 3DES повільний, 64-біт блок. Виявлення при аудиті = технічний борг.'},
+    hrAi:'S3 (SSE-KMS) → AES-256-GCM автоматично. PostgreSQL (TDE). Vector DB — перевірити, чи є підтримка.',
+    nist:'NIST SP 800-57: AES-256 рекомендований для довгострокового захисту.'
+  },
+  { id:'transit', icon:'🔒', name:'Шифрування in transit', color:'#7c5cbf', bg:'#ede9fe',
+    rec:{algo:'AES-256-GCM (TLS 1.3)',desc:'Стандартний cipher suite для TLS 1.3. Апаратне прискорення (AES-NI) на більшості серверів.'},
+    alt:{algo:'ChaCha20-Poly1305 (TLS 1.3)',desc:'Альтернативний AEAD. Стабільна продуктивність без апаратного прискорення. IoT, мобільні.'},
+    bad:{algo:'RC4, DES-CBC, TLS <1.2',desc:'RC4 заборонений у TLS. Будь-який cipher suite з DES або NULL. TLS 1.0/1.1 — deprecated.'},
+    hrAi:'Зовнішній HTTPS: TLS 1.3 на API Gateway. Внутрішній: mTLS через service mesh (Istio).',
+    nist:'PCI DSS: TLS 1.2+ обов\'язковий. NIST SP 800-52: TLS 1.3 рекомендований.'
+  },
+  { id:'kex', icon:'🔑', name:'Обмін ключами', color:'#f72585', bg:'#fce7f3',
+    rec:{algo:'ECDHE (X25519, P-256)',desc:'Ефемерні ключі для кожної сесії. Forward secrecy: компрометація довгострокового ключа не розкриває старі сесії.'},
+    alt:{algo:'DH (2048+ біт)',desc:'Класичний Diffie-Hellman. Повільніший за ECDHE, довші параметри. Прийнятний для legacy.'},
+    bad:{algo:'RSA key exchange',desc:'Немає forward secrecy. Компрометація серверного ключа → розшифрування всього записаного трафіку. Видалений з TLS 1.3.'},
+    hrAi:'TLS 1.3 між усіма компонентами HR AI використовує ECDHE (X25519) за замовчуванням.',
+    nist:'NIST SP 800-56A: ECDHE рекомендований. PQ: ML-KEM (FIPS 203) для постквантового обміну.'
+  },
+  { id:'sign', icon:'✍️', name:'Цифровий підпис', color:'#3b82f6', bg:'#dbeafe',
+    rec:{algo:'Ed25519 / ECDSA (P-256)',desc:'Компактні ключі і підписи. Ed25519 — менше помилок реалізації. ECDSA — ширша сумісність.'},
+    alt:{algo:'RSA-PSS (2048+ біт)',desc:'Широка підтримка у legacy-системах. Довші ключі і підписи. PSS — обов\'язково замість PKCS#1 v1.5.'},
+    bad:{algo:'RSA PKCS#1 v1.5, DSA',desc:'PKCS#1 v1.5 має відомі атаки (Bleichenbacher). DSA вразливий до nonce-повторення (PlayStation 3 hack).'},
+    hrAi:'Audit-логи HR AI: EdDSA (Ed25519) для підпису кожного запису. Сертифікати: ECDSA (P-256).',
+    nist:'NIST FIPS 186-5: ECDSA, EdDSA. PQ: ML-DSA (FIPS 204) для постквантового підпису.'
+  },
+  { id:'hash', icon:'#️⃣', name:'Хешування (цілісність)', color:'#10b981', bg:'#ecfdf5',
+    rec:{algo:'SHA-256 / SHA-384',desc:'Поточний стандарт. SHA-256: ~128-біт стійкість до колізій. Використовується в TLS, підписах, blockchain.'},
+    alt:{algo:'SHA-3 (Keccak) / Купина',desc:'SHA-3: інша внутрішня структура (sponge). Купина (ДСТУ 7564): український стандарт для держсистем.'},
+    bad:{algo:'MD5, SHA-1',desc:'MD5: колізії з 2004. SHA-1: колізії з 2017 (SHAttered). Не для криптографічних задач.'},
+    hrAi:'Перевірка цілісності артефактів моделі (ваги, конфігурації): SHA-256. API-токени: SHA-256 hash перед зберіганням.',
+    nist:'NIST FIPS 180-4 (SHA-2), FIPS 202 (SHA-3). MD5/SHA-1 заборонені для підписів.'
+  },
+  { id:'pwd', icon:'🔐', name:'Хешування паролів', color:'#f59e0b', bg:'#fffbeb',
+    rec:{algo:'Argon2id',desc:'Переможець PHC 2015. Параметризація: час, пам\'ять, паралелізм. Стійкий до GPU і ASIC атак.'},
+    alt:{algo:'bcrypt / scrypt',desc:'bcrypt: work factor подвоює час. scrypt: додає вимогу до пам\'яті. Прийнятні, якщо Argon2 недоступний.'},
+    bad:{algo:'SHA-256 (навіть з salt)',desc:'Занадто швидкий: GPU обчислює мільярди хешів/с. LinkedIn 2012: SHA-1 без salt → 6.5M зламано за дні.'},
+    hrAi:'Паролі рекрутерів і адміністраторів: Argon2id (≈100мс на сервері). API-токени: SHA-256 (не Argon2).',
+    nist:'NIST SP 800-63B: password hashing обов\'язковий. OWASP: Argon2id рекомендований.'
+  },
+];
+
+let selected = null;
+function renderTasks(){
+  document.getElementById('tasks').innerHTML = data.map(d =>
+    `<div class="task ${selected===d.id?'on':''}" style="--c:${d.color};--bg:${d.bg}" onclick="pick('${d.id}')">
+      <div class="t-icon">${d.icon}</div><div class="t-name">${d.name}</div>
+    </div>`
+  ).join('');
+}
+function pick(id){
+  selected = id;
+  renderTasks();
+  const d = data.find(x=>x.id===id);
+  document.getElementById('result').innerHTML = `<div class="result">
+    <div class="result-header"><h3>${d.icon} ${d.name}</h3></div>
+    <div class="cols3">
+      <div class="rcol rec"><h4>✓ Рекомендований</h4><span class="algo">${d.rec.algo}</span><span class="adesc">${d.rec.desc}</span></div>
+      <div class="rcol alt"><h4>△ Альтернатива</h4><span class="algo">${d.alt.algo}</span><span class="adesc">${d.alt.desc}</span></div>
+      <div class="rcol bad"><h4>✗ Не використовувати</h4><span class="algo">${d.bad.algo}</span><span class="adesc">${d.bad.desc}</span></div>
+    </div>
+    <div class="detail"><div class="detail-grid">
+      <div class="dcell"><div class="dl">У HR AI</div><div class="dv">${d.hrAi}</div></div>
+      <div class="dcell"><div class="dl">Стандарти</div><div class="dv">${d.nist}</div></div>
+    </div></div>
+  </div>`;
+}
+renderTasks();
+</script>
+</body>
+</html>
