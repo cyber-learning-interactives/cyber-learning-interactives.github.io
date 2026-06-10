@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Defense in Depth — Багаторівневий захист</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:740px;margin-bottom:20px}
+.header h1{font-size:1.45rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.6}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#ede9fe;color:#7c5cbf;margin-bottom:10px}
+.wrap{width:100%;max-width:900px}
+
+/* Rings */
+.rings{position:relative;width:100%;max-width:520px;height:520px;margin:0 auto 20px}
+.ring{position:absolute;border-radius:50%;border:2.5px solid;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .4s}
+.ring:hover{filter:brightness(1.05)}
+.ring.breached{border-style:dashed;opacity:.45}
+.ring .r-label{position:absolute;font-size:0.68rem;font-weight:700;text-align:center;pointer-events:none;line-height:1.2;transition:opacity .3s}
+.ring.breached .r-label{opacity:.4}
+
+/* Center data */
+.center-data{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.8rem;z-index:10;transition:all .5s}
+.center-data.safe{background:#ecfdf5;border:2px solid #10b981}
+.center-data.exposed{background:#fef2f2;border:2px solid #ef4444;animation:pulse-center 1.5s infinite}
+@keyframes pulse-center{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.3)}50%{box-shadow:0 0 0 12px rgba(239,68,68,0)}}
+
+/* Controls */
+.controls{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:20px;margin-bottom:16px}
+.controls h3{font-size:0.85rem;font-weight:700;margin-bottom:12px}
+.layer-toggles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ltoggle{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:10px;cursor:pointer;transition:all .2s;font-size:0.74rem;font-weight:500}
+.ltoggle:hover{border-color:#7c5cbf}
+.ltoggle input{width:15px;height:15px;cursor:pointer}
+.ltoggle.on{background:#ecfdf5;border-color:#10b981}
+.ltoggle.off{background:#fef2f2;border-color:#ef4444}
+.ltoggle .ldot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* Detail */
+.detail{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px 22px;margin-bottom:16px;display:none}
+.detail h3{font-size:0.88rem;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.detail p{font-size:0.8rem;color:#4b5563;line-height:1.6;margin-bottom:8px}
+.detail .d-controls{font-size:0.78rem;color:#1a1a2e;line-height:1.5;padding:10px 14px;background:#f9fafb;border-radius:8px;border:1px solid #f3f4f6}
+.detail .d-controls strong{color:#1a1a2e}
+
+/* Lesson */
+.lesson{padding:14px 18px;border-radius:12px;border:1.5px solid;font-size:0.8rem;line-height:1.6}
+.lesson strong{color:inherit}
+.lesson.green{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+.lesson.amber{background:#fffbeb;border-color:#fde68a;color:#92400e}
+.lesson.red{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+
+/* Stats */
+.stats{display:flex;gap:12px;margin-bottom:16px}
+.stat{flex:1;text-align:center;padding:10px;background:#fff;border:1px solid #e5e7eb;border-radius:10px}
+.stat .sn{font-size:1.3rem;font-weight:700}
+.stat .sl{font-size:0.65rem;color:#6b7280;margin-top:2px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 2 · РОЗДІЛ 8</div>
+  <h1>Defense in Depth</h1>
+  <p>Захист будується як система взаємодоповнюючих рівнів. Компрометація одного рівня не повинна означати доступ до даних. Вимикайте шари, щоб побачити, як система деградує.</p>
+</div>
+
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+
+  <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
+    <div style="flex:1;min-width:320px">
+      <div class="controls">
+        <h3>Шари захисту (натисніть, щоб вимкнути)</h3>
+        <div class="layer-toggles" id="toggles"></div>
+      </div>
+      <div class="detail" id="detail"></div>
+    </div>
+    <div class="rings" id="rings"></div>
+  </div>
+
+  <div id="lesson"></div>
+</div>
+
+<script>
+const layers = [
+  {
+    id: 'network', icon: '🌐', name: 'Мережева ізоляція', color: '#3b82f6',
+    radius: 240,
+    desc: 'Обмеження комунікацій між компонентами через network policies, сегментація мережі, firewall rules.',
+    controls: 'Network policies (Kubernetes), security groups (AWS), VPC segmentation. Inference Service не може напряму звернутися до бекапів.',
+    hrAi: 'Без цього шару: будь-який скомпрометований pod може звернутися до будь-якого компонента — БД, KMS, зовнішніх API.',
+    topic: 'Теми 2, 9'
+  },
+  {
+    id: 'channel', icon: '🔒', name: 'Захист каналу', color: '#7c5cbf',
+    radius: 200,
+    desc: 'TLS/mTLS для шифрування і автентифікації з\'єднань між компонентами.',
+    controls: 'TLS 1.3 для зовнішнього трафіку, mTLS (service mesh) для внутрішнього. Сертифікати X.509, автоматична ротація.',
+    hrAi: 'Без цього шару: внутрішній трафік з PII кандидатів передається у відкритому вигляді. SQL-запити до PostgreSQL перехоплюються.',
+    topic: 'Теми 6, 9'
+  },
+  {
+    id: 'encryption', icon: '🗝️', name: 'Шифрування at rest', color: '#14b8a6',
+    radius: 160,
+    desc: 'AES-256-GCM для даних у сховищах. Envelope encryption (DEK + KEK через KMS).',
+    controls: 'SSE-KMS для S3, TDE для PostgreSQL, BYOK для Vector DB. Окремі ключі для різних категорій даних.',
+    hrAi: 'Без цього шару: фізичний доступ до диска або snapshot = доступ до всіх резюме кандидатів у відкритому вигляді.',
+    topic: 'Теми 4, 8'
+  },
+  {
+    id: 'access', icon: '👤', name: 'Контроль доступу', color: '#f72585',
+    radius: 120,
+    desc: 'IAM policies + Key policies + Condition keys. Least privilege для кожного сервісу.',
+    controls: 'IAM roles per service, key policies per CMK, condition keys (VPC-only). Row-level security у БД.',
+    hrAi: 'Без цього шару: 23 сервіси мають kms:Decrypt. Шифрування формально є, але не обмежує реальний доступ.',
+    topic: 'Тема 10'
+  },
+  {
+    id: 'app', icon: '⚙️', name: 'Рівень застосунку', color: '#f59e0b',
+    radius: 80,
+    desc: 'Data minimization у промптах, маскування PII в логах, retention policies, input validation.',
+    controls: 'Masking PII перед логуванням, псевдонімізація перед LLM API, автоматичне видалення даних за графіком.',
+    hrAi: 'Без цього шару: PII потрапляє в логи у відкритому вигляді, повний текст резюме передається зовнішньому LLM.',
+    topic: 'Теми 2, 12'
+  },
+  {
+    id: 'monitor', icon: '📊', name: 'Моніторинг і аудит', color: '#10b981',
+    radius: 40,
+    desc: 'Audit logs для всіх операцій з ключами, моніторинг аномалій, incident response.',
+    controls: 'CloudTrail для KMS, підписані audit-логи (цифровий підпис), alerting на аномальні Decrypt-операції.',
+    hrAi: 'Без цього шару: інцидент не виявляється. Зловмисник дешифрує дані протягом місяців, і ніхто не знає.',
+    topic: 'Теми 7, 10'
+  },
+];
+
+let active = {};
+layers.forEach(l => active[l.id] = true);
+let selectedLayer = null;
+
+function breachedCount() { return layers.filter(l => !active[l.id]).length; }
+function dataExposed() {
+  // Data is exposed if 2+ adjacent inner layers are breached
+  const inner = ['access', 'app', 'monitor'];
+  const innerBreached = inner.filter(id => !active[id]).length;
+  if (innerBreached >= 2) return true;
+  // Or if encryption + access both breached
+  if (!active.encryption && !active.access) return true;
+  // Or 3+ any layers breached
+  if (breachedCount() >= 3) return true;
+  return false;
+}
+
+function render() {
+  // Stats
+  const bc = breachedCount();
+  const exposed = dataExposed();
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="sn" style="color:#10b981">${6-bc}</div><div class="sl">Активних шарів</div></div>
+    <div class="stat"><div class="sn" style="color:${bc>0?'#ef4444':'#d1d5db'}">${bc}</div><div class="sl">Скомпрометовано</div></div>
+    <div class="stat"><div class="sn" style="color:${exposed?'#ef4444':'#10b981'}">${exposed?'⚠':'✓'}</div><div class="sl">${exposed?'Дані під загрозою':'Дані захищені'}</div></div>`;
+
+  // Toggles
+  document.getElementById('toggles').innerHTML = layers.map(l => {
+    const on = active[l.id];
+    return `<label class="ltoggle ${on?'on':'off'}" onclick="toggleLayer('${l.id}')">
+      <div class="ldot" style="background:${on?l.color:'#ef4444'}"></div>
+      <span>${l.icon} ${l.name}</span>
+    </label>`;
+  }).join('');
+
+  // Rings
+  const cx = 260, cy = 260;
+  let ringsHtml = '';
+  layers.forEach(l => {
+    const r = l.radius;
+    const on = active[l.id];
+    const sel = selectedLayer === l.id;
+    ringsHtml += `<div class="ring ${on?'':'breached'} ${sel?'selected':''}" 
+      style="width:${r*2}px;height:${r*2}px;left:${cx-r}px;top:${cy-r}px;
+        background:${on ? l.color+'11' : '#fef2f211'};
+        border-color:${on ? l.color : '#ef4444'};
+        ${sel?'box-shadow:0 0 0 3px '+l.color+'33;':''}"
+      onclick="selectLayer('${l.id}')">
+      <div class="r-label" style="color:${on?l.color:'#ef4444'};${r>120?'top:6px':'top:50%;transform:translateY(-50%)'}">${l.icon}<br>${l.name}</div>
+    </div>`;
+  });
+  // Center
+  ringsHtml += `<div class="center-data ${exposed?'exposed':'safe'}">${exposed?'⚠️':'🔒'}</div>`;
+  document.getElementById('rings').innerHTML = ringsHtml;
+
+  // Lesson
+  if (bc === 0) {
+    document.getElementById('lesson').innerHTML = `<div class="lesson green"><strong>Усі шари активні.</strong> Кожен рівень покриває свою зону: мережа обмежує комунікації, канали шифрують трафік, encryption захищає сховища, IAM обмежує доступ, застосунок мінімізує дані, моніторинг виявляє аномалії. Жоден не замінює інший. Вимкніть шар, щоб побачити наслідки.</div>`;
+  } else if (!exposed) {
+    document.getElementById('lesson').innerHTML = `<div class="lesson amber"><strong>${bc} шар(и) скомпрометовано, але дані поки захищені.</strong> Інші шари утримують систему. Це і є суть defense in depth: одна помилка не руйнує весь захист. Але запас стійкості зменшується — кожен наступний скомпрометований шар наближає до витоку.</div>`;
+  } else {
+    document.getElementById('lesson').innerHTML = `<div class="lesson red"><strong>Дані під загрозою.</strong> Критична кількість шарів скомпрометована. Зловмисник може дістатися до персональних даних кандидатів. Це демонструє, чому захист не можна звести до одного механізму: шифрування без контролю доступу, або IAM без моніторингу — кожна така прогалина наближає до інциденту.</div>`;
+  }
+
+  // Detail
+  if (selectedLayer) {
+    const l = layers.find(x => x.id === selectedLayer);
+    const on = active[l.id];
+    document.getElementById('detail').style.display = 'block';
+    document.getElementById('detail').innerHTML = `
+      <h3><span style="color:${on?l.color:'#ef4444'}">${l.icon}</span> ${l.name} <span style="font-size:0.65rem;padding:2px 8px;border-radius:6px;background:${on?'#d1fae5':'#fecaca'};color:${on?'#065f46':'#991b1b'}">${on?'Активний':'Скомпрометований'}</span></h3>
+      <p>${l.desc}</p>
+      <div class="d-controls"><strong>Контролі:</strong> ${l.controls}</div>
+      <p style="margin-top:8px;color:${on?'#6b7280':'#dc2626'};font-weight:${on?'400':'600'}">${on ? '📗 ' + l.topic : '⚠ ' + l.hrAi}</p>`;
+  }
+}
+
+function toggleLayer(id) {
+  active[id] = !active[id];
+  selectedLayer = id;
+  render();
+}
+
+function selectLayer(id) {
+  selectedLayer = selectedLayer === id ? null : id;
+  if (!selectedLayer) document.getElementById('detail').style.display = 'none';
+  render();
+}
+
+render();
+</script>
+</body>
+</html>

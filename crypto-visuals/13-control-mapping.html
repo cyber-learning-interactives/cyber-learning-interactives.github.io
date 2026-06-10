@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control Mapping Explorer — Від вимог до контролів</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:740px;margin-bottom:20px}
+.header h1{font-size:1.45rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.6}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#ede9fe;color:#7c5cbf;margin-bottom:10px}
+.wrap{width:100%;max-width:920px}
+
+/* Two panels */
+.panels{display:grid;grid-template-columns:280px 1fr;gap:16px;align-items:start}
+@media(max-width:720px){.panels{grid-template-columns:1fr}}
+
+/* Requirements panel */
+.req-panel{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:16px;max-height:80vh;overflow-y:auto}
+.req-panel h3{font-size:0.8rem;font-weight:700;margin-bottom:10px;color:#6b7280}
+.req-group{margin-bottom:12px}
+.req-group-title{font-size:0.65rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;padding:0 4px}
+.req-item{padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;cursor:pointer;transition:all .2s;margin-bottom:4px;font-size:0.74rem;font-weight:500}
+.req-item:hover{border-color:#7c5cbf;background:#faf5ff}
+.req-item.on{border-color:#7c5cbf;background:#ede9fe;color:#5b21b6}
+.req-item code{font-family:'JetBrains Mono',monospace;font-size:0.66rem;margin-right:4px}
+
+/* Controls panel */
+.ctrl-panel{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:20px}
+.ctrl-panel h3{font-size:0.88rem;font-weight:700;margin-bottom:4px}
+.ctrl-panel .subtitle{font-size:0.78rem;color:#6b7280;margin-bottom:16px;line-height:1.4}
+
+.ctrl-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ctrl-card{padding:12px 14px;border-radius:10px;border:2px solid #f3f4f6;background:#f9fafb;transition:all .4s;opacity:.4}
+.ctrl-card.active{opacity:1;border-color:var(--c)}
+.ctrl-card .cc-top{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.ctrl-card .cc-icon{font-size:0.9rem}
+.ctrl-card .cc-name{font-size:0.76rem;font-weight:700}
+.ctrl-card .cc-desc{font-size:0.7rem;color:#4b5563;line-height:1.4}
+.ctrl-card .crypto-role{margin-top:6px;font-size:0.62rem;font-weight:600;padding:2px 8px;border-radius:6px;display:inline-block}
+
+/* Legend */
+.legend{display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;justify-content:center}
+.leg{display:flex;align-items:center;gap:4px;font-size:0.68rem;color:#6b7280}
+.leg .ld{width:12px;height:12px;border-radius:3px}
+
+/* No selection */
+.empty{text-align:center;padding:40px 20px;color:#9ca3af}
+.empty .e-icon{font-size:2rem;margin-bottom:8px}
+.empty p{font-size:0.82rem}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 3 · РОЗДІЛ 8</div>
+  <h1>Control Mapping Explorer</h1>
+  <p>Як абстрактні регуляторні вимоги перетворюються на конкретні технічні контролі. Оберіть вимогу зліва, щоб побачити, які контролі її реалізують і яка роль криптографії.</p>
+</div>
+
+<div class="wrap">
+  <div class="panels">
+    <div class="req-panel" id="req-panel"></div>
+    <div class="ctrl-panel" id="ctrl-panel">
+      <div class="empty"><div class="e-icon">👈</div><p>Оберіть вимогу зі списку</p></div>
+    </div>
+  </div>
+  <div class="legend">
+    <div class="leg"><div class="ld" style="background:#10b981"></div> Пряма роль crypto</div>
+    <div class="leg"><div class="ld" style="background:#f59e0b"></div> Часткова роль crypto</div>
+    <div class="leg"><div class="ld" style="background:#6b7280"></div> Crypto не задіяна</div>
+  </div>
+</div>
+
+<script>
+const requirements = [
+  { group: 'GDPR', items: [
+    { id: 'g32a', code: 'Art. 32(1)(a)', label: 'Шифрування та псевдонімізація',
+      desc: 'Контролер і процесор впроваджують шифрування та псевдонімізацію як технічні заходи захисту.',
+      controls: ['enc-rest', 'enc-transit', 'pseudo'] },
+    { id: 'g32b', code: 'Art. 32(1)(b)', label: 'Конфіденційність, цілісність, стійкість',
+      desc: 'Здатність забезпечити постійну конфіденційність, цілісність, доступність і стійкість систем обробки.',
+      controls: ['iam', 'mtls', 'network', 'sign'] },
+    { id: 'g25', code: 'Art. 25', label: 'Data Protection by Design',
+      desc: 'Захист даних враховується на етапі проєктування системи, а не додається пізніше.',
+      controls: ['enc-rest', 'iam', 'masking', 'minimization'] },
+    { id: 'g5c', code: 'Art. 5(1)(c)', label: 'Мінімізація даних',
+      desc: 'Обробляються лише дані, необхідні для визначеної мети.',
+      controls: ['minimization', 'pseudo'] },
+    { id: 'g5e', code: 'Art. 5(1)(e)', label: 'Обмеження зберігання',
+      desc: 'Дані зберігаються не довше, ніж необхідно для мети обробки.',
+      controls: ['retention', 'shred'] },
+    { id: 'g34', code: 'Art. 34(3)(a)', label: 'Виняток при витоку',
+      desc: 'Якщо дані зашифровані і ключ не скомпрометований, повідомлення суб\'єктів може не вимагатися.',
+      controls: ['enc-rest', 'kms'] },
+  ]},
+  { group: 'AI Act', items: [
+    { id: 'ai10', code: 'Art. 10', label: 'Data governance',
+      desc: 'Навчальні, валідаційні та тестові дані відповідають вимогам якості, репрезентативності та захисту.',
+      controls: ['enc-rest', 'iam', 'bias'] },
+    { id: 'ai12', code: 'Art. 12', label: 'Traceability (логування)',
+      desc: 'High-risk система підтримує автоматичне логування подій для відстеження рішень.',
+      controls: ['sign', 'audit', 'retention'] },
+    { id: 'ai14', code: 'Art. 14', label: 'Людський нагляд',
+      desc: 'Система проєктується для ефективного людського нагляду під час використання.',
+      controls: ['human', 'audit'] },
+    { id: 'ai15', code: 'Art. 15', label: 'Кібербезпека',
+      desc: 'Захист від несанкціонованого доступу та маніпуляцій, включаючи атаки на модель.',
+      controls: ['enc-rest', 'enc-transit', 'mtls', 'network', 'adversarial'] },
+  ]},
+  { group: 'NIST AI RMF', items: [
+    { id: 'nsec', code: 'Secure', label: 'Secure & Resilient',
+      desc: 'Система захищена від несанкціонованого доступу і стійка до збоїв.',
+      controls: ['enc-rest', 'enc-transit', 'iam', 'network', 'kms'] },
+    { id: 'npriv', code: 'Privacy', label: 'Privacy-Enhanced',
+      desc: 'Обробка даних мінімізує ризики ідентифікації та витоку.',
+      controls: ['pseudo', 'minimization', 'retention', 'masking'] },
+  ]},
+];
+
+const controls = {
+  'enc-rest': { icon: '🗝️', name: 'Шифрування at rest', desc: 'AES-256-GCM, SSE-KMS, TDE. Envelope encryption з DEK/KEK.', role: 'direct', roleLabel: 'Пряма', roleColor: '#10b981', topic: 'Теми 4, 8' },
+  'enc-transit': { icon: '🔒', name: 'Шифрування in transit', desc: 'TLS 1.3, mTLS для внутрішнього трафіку.', role: 'direct', roleLabel: 'Пряма', roleColor: '#10b981', topic: 'Тема 9' },
+  'pseudo': { icon: '🎭', name: 'Псевдонімізація', desc: 'Заміна прямих ідентифікаторів псевдонімами перед передачею зовнішнім API.', role: 'partial', roleLabel: 'Часткова', roleColor: '#f59e0b', topic: 'Теми 3, 12' },
+  'iam': { icon: '👤', name: 'Контроль доступу (IAM)', desc: 'IAM policies, key policies, least privilege, row-level security.', role: 'partial', roleLabel: 'Часткова', roleColor: '#f59e0b', topic: 'Тема 10' },
+  'mtls': { icon: '🤝', name: 'mTLS', desc: 'Взаємна автентифікація сервісів через сертифікати X.509.', role: 'direct', roleLabel: 'Пряма', roleColor: '#10b981', topic: 'Теми 6, 9' },
+  'network': { icon: '🌐', name: 'Мережева ізоляція', desc: 'Network policies, security groups, VPC segmentation.', role: 'none', roleLabel: 'Непряма', roleColor: '#6b7280', topic: 'Тема 9' },
+  'sign': { icon: '✍️', name: 'Цифровий підпис', desc: 'EdDSA/ECDSA для audit-логів — забезпечує цілісність і невідмовність.', role: 'direct', roleLabel: 'Пряма', roleColor: '#10b981', topic: 'Тема 7' },
+  'masking': { icon: '🔇', name: 'Маскування PII', desc: 'Masking/redaction чутливих даних у логах і відповідях.', role: 'none', roleLabel: 'Непряма', roleColor: '#6b7280', topic: 'Теми 2, 12' },
+  'minimization': { icon: '✂️', name: 'Data minimization', desc: 'Передача лише необхідних даних. Видалення зайвих полів перед LLM API.', role: 'none', roleLabel: 'Непряма', roleColor: '#6b7280', topic: 'Теми 3, 12' },
+  'retention': { icon: '🗓️', name: 'Retention policies', desc: 'Автоматичне видалення даних за графіком. Узгодження між основною системою і бекапами.', role: 'partial', roleLabel: 'Часткова', roleColor: '#f59e0b', topic: 'Теми 2, 10' },
+  'shred': { icon: '🗑️', name: 'Crypto-shredding', desc: 'Видалення DEK = фактичне знищення зашифрованих даних без їх перезапису.', role: 'direct', roleLabel: 'Пряма', roleColor: '#10b981', topic: 'Теми 4, 10' },
+  'kms': { icon: '☁️', name: 'KMS / Key management', desc: 'Централізоване управління ключами: зберігання, ротація, audit log.', role: 'direct', roleLabel: 'Пряма', roleColor: '#10b981', topic: 'Тема 10' },
+  'audit': { icon: '📋', name: 'Audit logs', desc: 'Фіксація всіх операцій з даними і ключами. CloudTrail для KMS.', role: 'partial', roleLabel: 'Часткова', roleColor: '#f59e0b', topic: 'Теми 7, 10' },
+  'human': { icon: '🧑', name: 'Human oversight', desc: 'Workflow з людським етапом прийняття рішення. Override mechanism.', role: 'none', roleLabel: 'Непряма', roleColor: '#6b7280', topic: 'Тема 14' },
+  'bias': { icon: '⚖️', name: 'Bias audit', desc: 'Перевірка навчальних даних на репрезентативність і дискримінацію.', role: 'none', roleLabel: 'Непряма', roleColor: '#6b7280', topic: 'Тема 12' },
+  'adversarial': { icon: '🛡️', name: 'Adversarial defense', desc: 'Захист моделі від poisoning, adversarial inputs, prompt injection.', role: 'none', roleLabel: 'Непряма', roleColor: '#6b7280', topic: 'Тема 12' },
+};
+
+let selectedReq = null;
+
+function renderReqs() {
+  let html = '';
+  requirements.forEach(g => {
+    html += `<div class="req-group">
+      <div class="req-group-title">${g.group}</div>`;
+    g.items.forEach(r => {
+      html += `<div class="req-item ${selectedReq===r.id?'on':''}" onclick="pickReq('${r.id}')">
+        <code>${r.code}</code> ${r.label}
+      </div>`;
+    });
+    html += '</div>';
+  });
+  document.getElementById('req-panel').innerHTML = '<h3>Вимоги</h3>' + html;
+}
+
+function pickReq(id) {
+  selectedReq = id;
+  renderReqs();
+  const req = requirements.flatMap(g => g.items).find(r => r.id === id);
+  
+  let html = `<h3>${req.code} — ${req.label}</h3>
+    <div class="subtitle">${req.desc}</div>
+    <div class="ctrl-grid">`;
+
+  // Show ALL controls, highlight the ones that map
+  const activeIds = req.controls;
+  Object.entries(controls).forEach(([cid, c]) => {
+    const isActive = activeIds.includes(cid);
+    html += `<div class="ctrl-card ${isActive?'active':''}" style="--c:${c.roleColor}">
+      <div class="cc-top">
+        <span class="cc-icon">${c.icon}</span>
+        <span class="cc-name">${c.name}</span>
+      </div>
+      ${isActive ? `<div class="cc-desc">${c.desc}</div>
+      <span class="crypto-role" style="background:${c.roleColor}22;color:${c.roleColor}">Crypto: ${c.roleLabel} · ${c.topic}</span>` : ''}
+    </div>`;
+  });
+
+  html += '</div>';
+  document.getElementById('ctrl-panel').innerHTML = html;
+}
+
+renderReqs();
+</script>
+</body>
+</html>
