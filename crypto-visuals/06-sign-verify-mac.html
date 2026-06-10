@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Цифровий підпис — Sign, Verify, MAC vs Signature</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:720px;margin-bottom:24px}
+.header h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.5}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#ede9fe;color:#7c5cbf;margin-bottom:10px}
+
+.wrap{width:100%;max-width:860px}
+
+/* Section tabs */
+.stabs{display:flex;gap:4px;margin-bottom:20px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:4px}
+.stab{flex:1;padding:10px;border:none;background:none;border-radius:9px;font-family:inherit;font-size:0.82rem;font-weight:600;cursor:pointer;color:#6b7280;transition:all .2s;text-align:center}
+.stab:hover{color:#1a1a2e;background:#f9fafb}
+.stab.on{color:#fff;background:#7c5cbf}
+
+.scene{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;min-height:380px}
+
+/* Flow diagram */
+.flow{display:flex;flex-direction:column;gap:4px;align-items:center}
+.flow-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center}
+.fbox{padding:10px 16px;border-radius:10px;border:1.5px solid;font-size:0.78rem;font-weight:600;text-align:center;min-width:90px;transition:all .3s}
+.farr{font-size:1rem;color:#d1d5db;flex-shrink:0}
+.ftag{font-size:0.6rem;font-weight:600;padding:2px 8px;border-radius:6px;color:#fff;margin-top:4px;display:inline-block}
+
+/* Tamper toggle */
+.tamper{margin-top:16px;padding:14px 16px;border-radius:10px;border:1px solid #e5e7eb;display:flex;align-items:center;gap:10px;background:#f9fafb}
+.tamper label{font-size:0.78rem;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:8px}
+.tamper input{width:16px;height:16px;accent-color:#ef4444;cursor:pointer}
+.tamper-result{font-size:0.78rem;font-weight:600;margin-left:auto;padding:4px 12px;border-radius:8px}
+
+/* Comparison */
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
+.ccard{border:1.5px solid #e5e7eb;border-radius:14px;padding:20px;position:relative;overflow:hidden}
+.ccard .accent{position:absolute;top:0;left:0;right:0;height:4px}
+.ccard h3{font-size:0.92rem;font-weight:700;margin:8px 0 12px;display:flex;align-items:center;gap:6px}
+.ccard .crow{padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:0.78rem;line-height:1.5}
+.ccard .crow:last-child{border-bottom:none}
+.ccard .crow .cl{font-size:0.62rem;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:2px}
+.ccard .crow .cv{color:#1a1a2e}
+
+/* Scenario */
+.scenario{margin-top:20px;padding:16px 20px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:12px}
+.scenario h4{font-size:0.82rem;font-weight:700;margin-bottom:8px}
+.scenario .sc-row{display:flex;gap:16px;font-size:0.78rem;line-height:1.5}
+.scenario .sc-col{flex:1;padding:10px 12px;border-radius:8px}
+.sc-fail{background:#fef2f2;border:1px solid #fecaca}
+.sc-pass{background:#ecfdf5;border:1px solid #bbf7d0}
+.sc-label{font-size:0.68rem;font-weight:600;margin-bottom:4px}
+
+.explain{margin-top:16px;padding:14px 16px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:10px;font-size:0.78rem;color:#4b5563;line-height:1.6}
+.explain strong{color:#1a1a2e}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 7 · РОЗДІЛ 2</div>
+  <h1>Цифровий підпис: Sign, Verify, MAC vs Signature</h1>
+  <p>Як створюється і перевіряється підпис. Чому MAC не доводить авторство третій стороні.</p>
+</div>
+
+<div class="wrap">
+  <div class="stabs">
+    <button class="stab on" onclick="showTab('flow')">Створення і перевірка підпису</button>
+    <button class="stab" onclick="showTab('compare')">MAC vs Цифровий підпис</button>
+  </div>
+  <div class="scene" id="scene"></div>
+</div>
+
+<script>
+let tab = 'flow';
+let tampered = false;
+
+function showTab(t) {
+  tab = t;
+  tampered = false;
+  document.querySelectorAll('.stab').forEach((b, i) => {
+    b.classList.toggle('on', (i === 0 && t === 'flow') || (i === 1 && t === 'compare'));
+  });
+  render();
+}
+
+function box(text, bg, border, extra = '') {
+  return `<div class="fbox" style="background:${bg};border-color:${border};color:${border === '#d1d5db' ? '#6b7280' : border.replace(/[^#0-9a-f]/gi,'')}">${text}${extra}</div>`;
+}
+function arr(t = '→') { return `<span class="farr">${t}</span>`; }
+
+function render() {
+  let html = '';
+
+  if (tab === 'flow') {
+    // SIGN phase
+    html += `<div style="margin-bottom:20px">
+      <div style="font-size:0.72rem;font-weight:700;color:#7c5cbf;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Створення підпису (автор)</div>
+      <div class="flow">
+        <div class="flow-row">
+          ${box('📄 Документ', '#ede9fe', '#7c5cbf')}
+          ${arr()}
+          ${box('SHA-256', '#f3e8ff', '#6b21a8', '<div class="ftag" style="background:#6b21a8">Hash</div>')}
+          ${arr()}
+          ${box('Digest<br><code style="font-size:0.6rem">a7f3...9b1e</code>', '#f9fafb', '#d1d5db')}
+          ${arr()}
+          ${box('🔑 Private Key', '#fce7f3', '#9d174d')}
+          ${arr()}
+          ${box('✍️ Signature', '#fef3c7', '#d97706', '<div class="ftag" style="background:#d97706">EdDSA</div>')}
+        </div>
+      </div>
+    </div>`;
+
+    // VERIFY phase
+    const digestMatch = !tampered;
+    const verifyColor = digestMatch ? '#059669' : '#dc2626';
+    const verifyBg = digestMatch ? '#ecfdf5' : '#fef2f2';
+    const verifyBorder = digestMatch ? '#10b981' : '#ef4444';
+    const docLabel = tampered ? '📄 Документ (змінено!)' : '📄 Документ';
+    const docBg = tampered ? '#fef2f2' : '#ede9fe';
+    const docBorderC = tampered ? '#ef4444' : '#7c5cbf';
+
+    html += `<div>
+      <div style="font-size:0.72rem;font-weight:700;color:#14b8a6;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Перевірка підпису (отримувач)</div>
+      <div class="flow">
+        <div class="flow-row">
+          ${box(docLabel, docBg, docBorderC)}
+          ${arr()}
+          ${box('SHA-256', '#f3e8ff', '#6b21a8')}
+          ${arr()}
+          ${box(tampered ? 'Digest<br><code style="font-size:0.6rem">c2d1...4f8a</code>' : 'Digest<br><code style="font-size:0.6rem">a7f3...9b1e</code>', '#f9fafb', '#d1d5db')}
+        </div>
+        <div style="height:8px"></div>
+        <div class="flow-row">
+          ${box('✍️ Signature', '#fef3c7', '#d97706')}
+          ${arr('+')}
+          ${box('🔓 Public Key', '#dbeafe', '#2563eb')}
+          ${arr()}
+          ${box(digestMatch ? '✓ Збігається' : '✗ Не збігається', verifyBg, verifyBorder)}
+        </div>
+      </div>
+    </div>`;
+
+    // Tamper toggle
+    html += `<div class="tamper">
+      <label><input type="checkbox" ${tampered ? 'checked' : ''} onchange="toggleTamper(this.checked)"> Змінити документ після підпису</label>
+      <span class="tamper-result" style="background:${verifyBg};color:${verifyColor}">
+        ${digestMatch ? '✓ Підпис валідний' : '✗ Підпис недійсний — документ змінено'}
+      </span>
+    </div>`;
+
+    html += `<div class="explain">
+      <strong>Що гарантує підпис:</strong> цілісність (документ не змінювався), автентичність (підпис створений власником private key) і невідмовність (автор не може заперечити факт підпису). <strong>Що НЕ гарантує:</strong> конфіденційність (документ не зашифрований) і правильність змісту (підпис фіксує цілісність, а не істинність).
+    </div>`;
+  }
+
+  else if (tab === 'compare') {
+    html += `<div class="compare">
+      <!-- MAC -->
+      <div class="ccard">
+        <div class="accent" style="background:#7c5cbf"></div>
+        <h3>🤝 MAC (HMAC-SHA256)</h3>
+        <div class="crow"><div class="cl">Ключ</div><div class="cv">Спільний секрет — обидві сторони мають однаковий ключ</div></div>
+        <div class="crow"><div class="cl">Створення</div><div class="cv"><code>HMAC(K, message) → tag</code></div></div>
+        <div class="crow"><div class="cl">Перевірка</div><div class="cv">Отримувач обчислює tag з тим самим ключем і порівнює</div></div>
+        <div class="crow"><div class="cl">Цілісність</div><div class="cv">✓ Зміна повідомлення робить tag недійсним</div></div>
+        <div class="crow"><div class="cl">Автентичність</div><div class="cv">✓ Між двома сторонами зі спільним ключем</div></div>
+        <div class="crow"><div class="cl">Невідмовність</div><div class="cv" style="color:#dc2626;font-weight:600">✗ Ні — обидві сторони мають ключ, жодна не може довести третій стороні, хто створив tag</div></div>
+        <div class="crow"><div class="cl">Коли використовувати</div><div class="cv">API-автентифікація, JWT, webhook callbacks</div></div>
+      </div>
+
+      <!-- Digital Signature -->
+      <div class="ccard">
+        <div class="accent" style="background:#14b8a6"></div>
+        <h3>✍️ Цифровий підпис (EdDSA)</h3>
+        <div class="crow"><div class="cl">Ключ</div><div class="cv">Пара ключів — private key тільки у автора, public key доступний усім</div></div>
+        <div class="crow"><div class="cl">Створення</div><div class="cv"><code>sign(private_key, hash(msg)) → sig</code></div></div>
+        <div class="crow"><div class="cl">Перевірка</div><div class="cv">Будь-хто з public key може перевірити підпис</div></div>
+        <div class="crow"><div class="cl">Цілісність</div><div class="cv">✓ Зміна документа робить підпис недійсним</div></div>
+        <div class="crow"><div class="cl">Автентичність</div><div class="cv">✓ Підпис міг створити тільки власник private key</div></div>
+        <div class="crow"><div class="cl">Невідмовність</div><div class="cv" style="color:#059669;font-weight:600">✓ Так — автор не може заперечити, бо тільки він мав private key</div></div>
+        <div class="crow"><div class="cl">Коли використовувати</div><div class="cv">Audit-логи, сертифікати, підписання документів, підпис коду</div></div>
+      </div>
+    </div>`;
+
+    // Scenario
+    html += `<div class="scenario">
+      <h4>🏛️ Сценарій: аудитор перевіряє лог HR AI</h4>
+      <div class="sc-row">
+        <div class="sc-col sc-fail">
+          <div class="sc-label" style="color:#dc2626">З HMAC</div>
+          Аудитор не може перевірити лог самостійно. Він не має спільного ключа. Навіть якщо отримає ключ — не може довести, чи запис створила система, чи адміністратор підробив його тим самим ключем.
+        </div>
+        <div class="sc-col sc-pass">
+          <div class="sc-label" style="color:#059669">З цифровим підписом</div>
+          Аудитор бере public key системи і перевіряє підпис кожного запису. Якщо підпис валідний — запис не змінювався і створений системою. Це доказ для суду, регулятора, compliance-звіту.
+        </div>
+      </div>
+    </div>`;
+
+    html += `<div class="explain">
+      <strong>Ключова різниця:</strong> MAC працює між двома довіреними сторонами. Цифровий підпис працює для будь-якого верифікатора. Для audit-логів HR AI (AI Act Art. 12 — traceability) потрібен саме підпис, а не HMAC.
+    </div>`;
+  }
+
+  document.getElementById('scene').innerHTML = html;
+}
+
+function toggleTamper(v) {
+  tampered = v;
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
