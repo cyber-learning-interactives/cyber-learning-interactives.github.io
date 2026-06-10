@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Encryption Coverage Map Builder — HR AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:740px;margin-bottom:20px}
+.header h1{font-size:1.4rem;font-weight:700;margin-bottom:6px}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.6}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#ede9fe;color:#7c5cbf;margin-bottom:10px}
+.wrap{width:100%;max-width:920px}
+
+table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;margin-bottom:16px}
+th{background:#f9fafb;padding:10px 12px;font-size:0.65rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;text-align:left;border-bottom:1px solid #e5e7eb}
+td{padding:8px 12px;border-bottom:1px solid #f3f4f6;font-size:0.76rem;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+td:first-child{font-weight:600;font-size:0.78rem;white-space:nowrap}
+select{padding:5px 8px;border:1.5px solid #e5e7eb;border-radius:6px;font-family:inherit;font-size:0.72rem;background:#fff;cursor:pointer;width:100%}
+select:focus{border-color:#7c5cbf;outline:none}
+select.gap{border-color:#ef4444;background:#fef2f2}
+select.ok{border-color:#10b981;background:#ecfdf5}
+select.partial{border-color:#f59e0b;background:#fffbeb}
+
+.gap-cell{font-size:0.7rem;color:#4b5563;line-height:1.3}
+.gap-indicator{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
+
+.stats{display:flex;gap:12px;margin-bottom:16px}
+.stat{flex:1;text-align:center;padding:10px;background:#fff;border:1px solid #e5e7eb;border-radius:10px}
+.stat .sn{font-size:1.3rem;font-weight:700}
+.stat .sl{font-size:0.62rem;color:#6b7280;margin-top:2px}
+
+.lesson{padding:14px 18px;border-radius:12px;border:1.5px solid;font-size:0.8rem;line-height:1.6}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 8 · РОЗДІЛ 10</div>
+  <h1>Encryption Coverage Map Builder</h1>
+  <p>Заповніть карту шифрування для компонентів HR AI. Для кожного — рівень, алгоритм, управління ключами. Система підсвічує прогалини автоматично.</p>
+</div>
+
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+  <table>
+    <thead>
+      <tr><th>Компонент</th><th>Дані</th><th>Стан</th><th>Шифрування</th><th>Алгоритм</th><th>Ключі</th><th>Прогалина</th></tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div class="lesson" id="lesson"></div>
+</div>
+
+<script>
+const rows = [
+  { comp:'🗄️ S3 (CV)', data:'CV-файли', state:'At rest',
+    encOpts:['—','SSE-S3','SSE-KMS','CSE'], encCorrect:'SSE-KMS',
+    algoOpts:['—','AES-128','AES-256-CBC','AES-256-GCM'], algoCorrect:'AES-256-GCM',
+    keyOpts:['—','Self-managed','AWS managed','BYOK','Envelope (DEK+KEK)'], keyCorrect:'Envelope (DEK+KEK)',
+    gaps:{ '—':'Немає шифрування. Фізичний доступ до диска = доступ до всіх CV.',
+           'SSE-S3':'AWS контролює ключ. Ви не можете обмежити доступ через key policy.',
+           'SSE-KMS':'✓ Правильно. Envelope encryption, контроль через IAM + key policy.',
+           'CSE':'Максимальний контроль, але складніша реалізація. Потрібен KMS для ключів.'}},
+  { comp:'🗃️ PostgreSQL', data:'Профілі, оцінки', state:'At rest',
+    encOpts:['—','TDE','Column-level','TDE + Column'], encCorrect:'TDE + Column',
+    algoOpts:['—','AES-128','AES-256','AES-256-GCM'], algoCorrect:'AES-256',
+    keyOpts:['—','Local file','KMS managed','HSM'], keyCorrect:'KMS managed',
+    gaps:{ '—':'PII зберігається plaintext. Будь-який доступ до БД = доступ до даних.',
+           'TDE':'Захист від фізичного доступу, але всі SQL-запити бачать plaintext. Потрібен column-level для PII.',
+           'Column-level':'Окремі поля зашифровані, але метадані видимі. Потрібен TDE як базовий рівень.',
+           'TDE + Column':'✓ TDE як базовий рівень + column encryption для PII полів.'}},
+  { comp:'🔢 Vector DB', data:'Embeddings', state:'At rest',
+    encOpts:['—','FDE','BYOK','Application-level'], encCorrect:'BYOK',
+    algoOpts:['—','AES-128','AES-256','Невідомо'], algoCorrect:'AES-256',
+    keyOpts:['—','Provider managed','BYOK','Self-managed'], keyCorrect:'BYOK',
+    gaps:{ '—':'⚠ КРИТИЧНО. Embeddings зберігаються plaintext. Embedding inversion можливий.',
+           'FDE':'Захист від фізичного доступу. Але similarity search працює на plaintext.',
+           'BYOK':'✓ Ви контролюєте ключ. Але similarity search все одно на plaintext.',
+           'Application-level':'Максимальний контроль, але ламає similarity search. Потрібна спеціальна архітектура.'}},
+  { comp:'🤖 LLM API', data:'Промпти з PII', state:'In transit',
+    encOpts:['—','TLS 1.2','TLS 1.3','mTLS'], encCorrect:'TLS 1.3',
+    algoOpts:['—','AES-128-GCM','AES-256-GCM','ChaCha20'], algoCorrect:'AES-256-GCM',
+    keyOpts:['—','Ephemeral (ECDHE)','Static RSA','N/A'], keyCorrect:'Ephemeral (ECDHE)',
+    gaps:{ '—':'⚠ КРИТИЧНО. PII передається plaintext через інтернет.',
+           'TLS 1.2':'Прийнятно за умови правильної конфігурації. Перевірити cipher suites.',
+           'TLS 1.3':'✓ Канал захищений. Але TLS не контролює, що провайдер робить з даними після отримання.',
+           'mTLS':'Взаємна автентифікація. Надмірно для зовнішнього API — зазвичай TLS + API key.'}},
+  { comp:'📋 Логи', data:'PII у промптах', state:'At rest',
+    encOpts:['—','FDE','KMS encryption','KMS + Masking'], encCorrect:'KMS + Masking',
+    algoOpts:['—','AES-128','AES-256-GCM','N/A'], algoCorrect:'AES-256-GCM',
+    keyOpts:['—','Shared key','Окремий KEK','Окремий KEK + retention'], keyCorrect:'Окремий KEK + retention',
+    gaps:{ '—':'⚠ КРИТИЧНО. Тіньові копії PII без захисту.',
+           'FDE':'Базовий рівень. Але PII всередині логу у відкритому вигляді.',
+           'KMS encryption':'Файл зашифрований, але PII всередині все ще plaintext для авторизованих.',
+           'KMS + Masking':'✓ Шифрування файлу + маскування PII перед записом у лог.'}},
+  { comp:'💾 Бекапи', data:'Повні копії', state:'At rest',
+    encOpts:['—','Same key as main','Окремий KEK','Окремий KEK + retention'], encCorrect:'Окремий KEK + retention',
+    algoOpts:['—','AES-128','AES-256','AES-256-GCM'], algoCorrect:'AES-256-GCM',
+    keyOpts:['—','Shared with main','Окремий KEK','Окремий KEK + crypto-shredding'], keyCorrect:'Окремий KEK + crypto-shredding',
+    gaps:{ '—':'Повна копія системи без захисту.',
+           'Same key as main':'Компрометація одного ключа відкриває і основні дані, і бекапи.',
+           'Окремий KEK':'Ізоляція від основного сховища. Але retention неузгоджений.',
+           'Окремий KEK + retention':'✓ Ізоляція + узгоджена retention policy + можливість crypto-shredding.'}},
+];
+
+function render(){
+  let covered=0, gaps=0, total=rows.length;
+  let html='';
+  rows.forEach((r,i)=>{
+    const encVal=document.getElementById('enc-'+i)?.value||'—';
+    const algoVal=document.getElementById('algo-'+i)?.value||'—';
+    const keyVal=document.getElementById('key-'+i)?.value||'—';
+
+    const encCls=encVal===r.encCorrect?'ok':encVal==='—'?'gap':'partial';
+    const algoCls=algoVal===r.algoCorrect?'ok':algoVal==='—'?'gap':'partial';
+    const keyCls=keyVal===r.keyCorrect?'ok':keyVal==='—'?'gap':'partial';
+
+    if(encVal!=='—') covered++; else gaps++;
+    const gapText=r.gaps[encVal]||'';
+    const isGap=gapText.startsWith('⚠');
+    const isOk=gapText.startsWith('✓');
+
+    html+=`<tr>
+      <td>${r.comp}</td>
+      <td style="font-size:0.7rem;color:#6b7280">${r.data}</td>
+      <td style="font-size:0.7rem">${r.state}</td>
+      <td><select id="enc-${i}" class="${encCls}" onchange="render()">${r.encOpts.map(o=>`<option ${o===encVal?'selected':''}>${o}</option>`).join('')}</select></td>
+      <td><select id="algo-${i}" class="${algoCls}" onchange="render()">${r.algoOpts.map(o=>`<option ${o===algoVal?'selected':''}>${o}</option>`).join('')}</select></td>
+      <td><select id="key-${i}" class="${keyCls}" onchange="render()">${r.keyOpts.map(o=>`<option ${o===keyVal?'selected':''}>${o}</option>`).join('')}</select></td>
+      <td class="gap-cell"><span class="gap-indicator" style="background:${isOk?'#10b981':isGap?'#ef4444':'#f59e0b'}"></span>${gapText}</td>
+    </tr>`;
+  });
+  document.getElementById('tbody').innerHTML=html;
+  document.getElementById('stats').innerHTML=`
+    <div class="stat"><div class="sn" style="color:#10b981">${covered}</div><div class="sl">Покрито</div></div>
+    <div class="stat"><div class="sn" style="color:#ef4444">${gaps}</div><div class="sl">Прогалин</div></div>
+    <div class="stat"><div class="sn">${total}</div><div class="sl">Компонентів</div></div>`;
+
+  const pct=Math.round(covered/total*100);
+  const cls=pct===100?'background:#ecfdf5;border-color:#a7f3d0;color:#065f46':pct>50?'background:#fffbeb;border-color:#fde68a;color:#92400e':'background:#fef2f2;border-color:#fecaca;color:#991b1b';
+  document.getElementById('lesson').style.cssText=cls;
+  document.getElementById('lesson').innerHTML=pct===100
+    ?'<strong>Повне покриття!</strong> Усі компоненти мають шифрування. Перевірте колонку «Прогалина» — навіть із шифруванням можуть залишатися розриви (доступ, retention, masking).'
+    :`<strong>Покриття: ${pct}%.</strong> ${gaps} компонент(ів) без шифрування. Оберіть рівень шифрування, алгоритм і управління ключами для кожного. Прогалини підсвічуються автоматично.`;
+}
+render();
+</script>
+</body>
+</html>

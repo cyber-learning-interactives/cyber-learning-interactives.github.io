@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crypto Misuse Taxonomy — 83% помилок не в алгоритмах</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:740px;margin-bottom:20px}
+.header h1{font-size:1.45rem;font-weight:700;margin-bottom:6px}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.6}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#fef2f2;color:#dc2626;margin-bottom:10px}
+.wrap{width:100%;max-width:860px}
+
+/* Big stat */
+.big-stat{display:flex;gap:16px;margin-bottom:20px}
+.bs{flex:1;text-align:center;padding:20px;border-radius:14px;border:2px solid}
+.bs .bn{font-size:2.5rem;font-weight:700}
+.bs .bl{font-size:0.78rem;font-weight:600;margin-top:4px}
+.bs.misuse{background:#fef2f2;border-color:#fecaca;color:#dc2626}
+.bs.algo{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+
+/* Categories */
+.cats{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.cat{background:#fff;border:2px solid #e5e7eb;border-radius:12px;overflow:hidden;cursor:pointer;transition:all .3s}
+.cat:hover{border-color:#7c5cbf}
+.cat.open{border-color:var(--c)}
+.cat-header{padding:12px 18px;display:flex;align-items:center;gap:12px}
+.cat-bar{width:60px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;color:#fff;flex-shrink:0}
+.cat-info{flex:1}
+.cat-info h3{font-size:0.85rem;font-weight:700;margin-bottom:1px}
+.cat-info p{font-size:0.7rem;color:#6b7280}
+.cat-arrow{font-size:1rem;color:#d1d5db;transition:transform .3s}
+.cat.open .cat-arrow{transform:rotate(90deg);color:#7c5cbf}
+
+.cat-body{display:none;padding:0 18px 16px}
+.cat.open .cat-body{display:block}
+
+.example{padding:12px 14px;background:#f9fafb;border-radius:10px;border:1px solid #f3f4f6;margin-bottom:8px}
+.example h4{font-size:0.78rem;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.example .e-tag{font-size:0.58rem;font-weight:600;padding:2px 7px;border-radius:5px;background:#ede9fe;color:#7c5cbf}
+.example p{font-size:0.74rem;color:#4b5563;line-height:1.5}
+.example .e-hr{margin-top:6px;font-size:0.7rem;padding:6px 10px;background:#fffbeb;border-radius:6px;border:1px solid #fde68a;color:#92400e}
+
+.lesson{padding:14px 18px;border-radius:12px;border:1.5px solid #fde68a;background:#fffbeb;font-size:0.8rem;line-height:1.6;color:#92400e}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 11 · РОЗДІЛ 2</div>
+  <h1>Crypto Misuse Taxonomy</h1>
+  <p>Дослідження MIT (Lazar et al., 2014) та OWASP: 83% криптографічних уразливостей — не в алгоритмах, а в тому, як їх використовують. Натисніть на категорію, щоб побачити приклади.</p>
+</div>
+
+<div class="wrap">
+  <div class="big-stat">
+    <div class="bs misuse"><div class="bn">83%</div><div class="bl">Помилки використання</div></div>
+    <div class="bs algo"><div class="bn">17%</div><div class="bl">Проблеми алгоритмів</div></div>
+  </div>
+
+  <div class="cats" id="cats"></div>
+
+  <div class="lesson"><strong>Висновок для HR AI:</strong> обрати AES-256-GCM — це 17% завдання. Решта 83% — правильне управління ключами, унікальні nonce, валідація сертифікатів, обробка помилок і retention. Саме тому теми 10–13 цього курсу займають більше часу, ніж тема 4.</div>
+</div>
+
+<script>
+const categories=[
+  {pct:'29%',color:'#dc2626',name:'Неправильне управління ключами',
+   sub:'Ключі в коді, без ротації, один ключ на все',
+   examples:[
+     {title:'Ключ у GitHub-репозиторії',tag:'CVE-типовий',
+      desc:'Розробник закомітив AWS secret key у публічний репо. Бот знайшов за 5 хвилин і почав створювати EC2-інстанси для майнінгу.',
+      hr:'Ключ DEK для CV зберігається як змінна середовища замість KMS. Деплой на staging-сервер = ключ доступний DevOps-команді.'},
+     {title:'Один ключ для всього',tag:'NIST SP 800-57',
+      desc:'23 мікросервіси використовують один CMK з одним kms:Decrypt. Компрометація будь-якого сервісу = доступ до всіх даних.',
+      hr:'У HR AI: один cv-key для файлів, логів і бекапів. Потрібна сегментація: окремий KEK для кожної категорії даних.'},
+   ]},
+  {pct:'22%',color:'#ef4444',name:'Неправильний режим або параметри',
+   sub:'ECB замість GCM, повторення nonce, відсутній IV',
+   examples:[
+     {title:'ECB mode у production',tag:'Adobe 2013',
+      desc:'Adobe зберігала паролі зашифрованими ECB. Однакові паролі = однаковий ciphertext. З 153 млн записів аналітики відновили найпопулярніші паролі.',
+      hr:'Якщо HR AI шифрує оцінки ECB — однакові оцінки різних кандидатів видно без дешифрування.'},
+     {title:'Nonce reuse в GCM',tag:'Forbidden Attack',
+      desc:'Повторення 96-bit nonce з тим самим ключем розкриває XOR plaintexts і ключ автентифікації GHASH.',
+      hr:'Перезапуск pod\'а без persistent counter → лічильник nonce скидається. Рішення: випадковий nonce або окремий DEK per object.'},
+   ]},
+  {pct:'17%',color:'#f59e0b',name:'Відсутня валідація сертифікатів',
+   sub:'verify=false, неперевірений hostname, пропущена перевірка відкликання',
+   examples:[
+     {title:'verify=false у Python-коді',tag:'OWASP A07',
+      desc:'<code>requests.get(url, verify=False)</code> вимикає всю перевірку TLS. MITM-атака стає тривіальною: будь-хто між клієнтом і сервером бачить трафік.',
+      hr:'Inference Service з\'єднується з LLM API через <code>verify=False</code> "бо в dev так працює". Production трафік з PII кандидатів — без перевірки сертифіката.'},
+   ]},
+  {pct:'9%',color:'#f59e0b',name:'Ігнорування помилок криптобібліотек',
+   sub:'Catch-and-ignore, fallback на plaintext, silent failures',
+   examples:[
+     {title:'Catch → return empty',tag:'CWE-391',
+      desc:'Помилка дешифрування ловиться, логується і повертається порожній результат. Застосунок продовжує працювати з некоректними (або відсутніми) даними.',
+      hr:'KMS повертає помилку (key disabled), а сервіс замість fail-safe записує оцінку кандидата без шифрування у fallback-таблицю.'},
+   ]},
+  {pct:'6%',color:'#6b7280',name:'Використання deprecated алгоритмів',
+   sub:'MD5, SHA-1, DES, RC4 у нових системах',
+   examples:[
+     {title:'SHA-1 для підписів',tag:'SHAttered 2017',
+      desc:'Google продемонстрував практичну колізію SHA-1: два різні PDF з однаковим хешем. Вартість атаки: ~$110,000 (і знижується).',
+      hr:'Якщо audit-логи HR AI підписані SHA-1 — зловмисник може створити підроблений лог з тим самим хешем.'},
+   ]},
+];
+
+let openCat=null;
+function render(){
+  document.getElementById('cats').innerHTML=categories.map((c,i)=>{
+    const isOpen=openCat===i;
+    return `<div class="cat ${isOpen?'open':''}" style="--c:${c.color}" onclick="toggle(${i})">
+      <div class="cat-header">
+        <div class="cat-bar" style="background:${c.color}">${c.pct}</div>
+        <div class="cat-info"><h3>${c.name}</h3><p>${c.sub}</p></div>
+        <div class="cat-arrow">›</div>
+      </div>
+      <div class="cat-body">${c.examples.map(e=>`<div class="example">
+        <h4>${e.title} <span class="e-tag">${e.tag}</span></h4>
+        <p>${e.desc}</p>
+        <div class="e-hr">🤖 <strong>У HR AI:</strong> ${e.hr}</div>
+      </div>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+function toggle(i){openCat=openCat===i?null:i;render();}
+render();
+</script>
+</body>
+</html>

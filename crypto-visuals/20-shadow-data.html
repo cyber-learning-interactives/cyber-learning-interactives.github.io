@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shadow Data Tracer — Тіньові копії даних</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:740px;margin-bottom:20px}
+.header h1{font-size:1.45rem;font-weight:700;margin-bottom:6px}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.6}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#ede9fe;color:#7c5cbf;margin-bottom:10px}
+.wrap{width:100%;max-width:860px}
+
+.source{text-align:center;padding:16px;background:#7c5cbf;border-radius:14px;color:#fff;margin-bottom:4px}
+.source h3{font-size:0.9rem;font-weight:700}
+.source p{font-size:0.72rem;opacity:.8}
+
+.trace-arrow{text-align:center;font-size:1rem;color:#d1d5db;padding:4px 0}
+
+.copies{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.copy{background:#fff;border:2px solid #e5e7eb;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;transition:all .4s;cursor:pointer}
+.copy:hover{border-color:#7c5cbf}
+.copy.selected{border-color:var(--c);box-shadow:0 0 0 3px var(--glow)}
+.copy .c-icon{font-size:1.3rem;flex-shrink:0}
+.copy .c-body{flex:1}
+.copy .c-name{font-size:0.82rem;font-weight:700;margin-bottom:2px}
+.copy .c-how{font-size:0.7rem;color:#6b7280}
+.copy .c-shield{display:flex;gap:4px;align-items:center}
+.shield{width:32px;height:8px;border-radius:4px}
+
+.detail{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px 22px;margin-bottom:16px;display:none}
+.detail h3{font-size:0.88rem;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dcell{padding:10px 12px;background:#f9fafb;border-radius:8px;border:1px solid #f3f4f6}
+.dcell.full{grid-column:1/-1}
+.dcell .dl{font-size:0.6rem;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:3px}
+.dcell .dv{font-size:0.76rem;color:#1a1a2e;line-height:1.4}
+
+.stats{display:flex;gap:12px;margin-bottom:16px}
+.stat{flex:1;text-align:center;padding:10px;background:#fff;border:1px solid #e5e7eb;border-radius:10px}
+.stat .sn{font-size:1.3rem;font-weight:700}
+.stat .sl{font-size:0.62rem;color:#6b7280;margin-top:2px}
+
+.lesson{padding:14px 18px;border-radius:12px;border:1.5px solid #fecaca;background:#fef2f2;font-size:0.8rem;line-height:1.6;color:#991b1b}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 2 · РОЗДІЛ 4</div>
+  <h1>Shadow Data Tracer</h1>
+  <p>Одне резюме зберігається у S3 із шифруванням. Але його копії з'являються ще в 5 місцях — часто без належного захисту. Натисніть на копію, щоб побачити деталі.</p>
+</div>
+
+<div class="wrap">
+  <div class="source">
+    <h3>📄 Резюме кандидата (оригінал)</h3>
+    <p>S3 → SSE-KMS → AES-256-GCM → Envelope encryption ✓</p>
+  </div>
+  <div class="trace-arrow">↓ Система обробляє файл і створює копії ↓</div>
+
+  <div class="stats">
+    <div class="stat"><div class="sn">1</div><div class="sl">Оригінал (захищений)</div></div>
+    <div class="stat"><div class="sn" style="color:#ef4444">5</div><div class="sl">Тіньових копій</div></div>
+    <div class="stat"><div class="sn" style="color:#ef4444">3</div><div class="sl">Без належного захисту</div></div>
+  </div>
+
+  <div class="copies" id="copies"></div>
+  <div class="detail" id="detail"></div>
+  <div class="lesson"><strong>Ключова ідея:</strong> дані існують не лише там, де їх зберігають, а там, де вони були використані. Основне сховище може бути ідеально зашифроване, але 3 з 5 копій не мають такого ж рівня захисту. Контроль над даними втрачається не в одному місці, а через їх розповсюдження по системі.</div>
+</div>
+
+<script>
+const copies=[
+  {icon:'💬',name:'Промпт до LLM API',how:'Повний текст резюме вставлений у промпт і переданий зовнішньому провайдеру',
+   color:'#ef4444',glow:'rgba(239,68,68,.15)',protection:15,protColor:'#ef4444',protLabel:'Мінімальний',
+   content:'Повний текст: ім\'я, контакти, досвід, освіта',encrypt:'TLS 1.3 (тільки канал)',
+   gap:'Після отримання провайдером — поза контролем організації. Може зберігатися для навчання.',
+   fix:'Data minimization: передавати тільки необхідні поля. Псевдонімізація PII.'},
+  {icon:'📋',name:'Inference лог',how:'Промпт + відповідь моделі записані в лог із PII у відкритому вигляді',
+   color:'#ef4444',glow:'rgba(239,68,68,.15)',protection:20,protColor:'#ef4444',protLabel:'Мінімальний',
+   content:'Текст промпту (з PII) + відповідь моделі + timestamp + user ID',encrypt:'KMS для файлу логу (але PII всередині plaintext)',
+   gap:'Тіньова копія PII. Зазвичай ширший доступ, ніж до основного сховища. Retention неузгоджений.',
+   fix:'Masking PII перед записом у лог. Окремий KEK. Retention policy = основному сховищу.'},
+  {icon:'🔢',name:'Embedding у Vector DB',how:'Числове представлення тексту зберігається окремо для пошуку',
+   color:'#f59e0b',glow:'rgba(245,158,11,.15)',protection:35,protColor:'#f59e0b',protLabel:'Частковий',
+   content:'768-dimensional vector, що зберігає семантику тексту',encrypt:'FDE або BYOK (якщо підтримується)',
+   gap:'Embeddings сприймаються як "технічні дані", але дозволяють непряму ідентифікацію. Часто без retention.',
+   fix:'BYOK, namespace isolation, retention aligned з основними даними.'},
+  {icon:'💾',name:'Резервна копія',how:'Повна копія S3-бакету у backup storage',
+   color:'#f59e0b',glow:'rgba(245,158,11,.15)',protection:50,protColor:'#f59e0b',protLabel:'Частковий',
+   content:'Повна копія всіх CV за весь період',encrypt:'Зашифрований, але часто тим самим ключем що й основне сховище',
+   gap:'Дані "видалені" з основної системи, але залишаються в бекапах. Інші IAM-права.',
+   fix:'Окремий KEK. Crypto-shredding для реального видалення. Узгоджена retention policy.'},
+  {icon:'🧠',name:'Параметри моделі (fine-tuning)',how:'Фрагменти тексту "вбудовані" у ваги моделі під час навчання',
+   color:'#ef4444',glow:'rgba(239,68,68,.15)',protection:10,protColor:'#ef4444',protLabel:'Мінімальний',
+   content:'Фрагменти навчальних даних у параметрах моделі (memorization)',encrypt:'Шифрування артефакту at rest, але memorization не усувається',
+   gap:'Модель може відтворювати фрагменти резюме. Не підпадає під стандартні механізми видалення (GDPR Art. 17).',
+   fix:'Деперсоналізація dataset перед навчанням. Differential privacy. Re-training при запиті на видалення.'},
+];
+
+let selected=null;
+function renderCopies(){
+  document.getElementById('copies').innerHTML=copies.map((c,i)=>{
+    const sel=selected===i;
+    return `<div class="copy ${sel?'selected':''}" style="--c:${c.color};--glow:${c.glow}" onclick="pick(${i})">
+      <div class="c-icon">${c.icon}</div>
+      <div class="c-body"><div class="c-name">${c.name}</div><div class="c-how">${c.how}</div></div>
+      <div class="c-shield"><div class="shield" style="background:${c.protColor}33"><div style="width:${c.protection}%;height:100%;background:${c.protColor};border-radius:4px"></div></div><span style="font-size:.6rem;font-weight:600;color:${c.protColor}">${c.protection}%</span></div>
+    </div>`;
+  }).join('');
+}
+function pick(i){
+  selected=i;
+  renderCopies();
+  const c=copies[i];
+  const d=document.getElementById('detail');
+  d.style.display='block';
+  d.innerHTML=`<h3>${c.icon} ${c.name} <span style="font-size:.65rem;padding:2px 10px;border-radius:6px;background:${c.protColor}22;color:${c.protColor};font-weight:600">${c.protLabel}</span></h3>
+    <div class="detail-grid">
+      <div class="dcell"><div class="dl">Зміст копії</div><div class="dv">${c.content}</div></div>
+      <div class="dcell"><div class="dl">Crypto-захист</div><div class="dv">${c.encrypt}</div></div>
+      <div class="dcell"><div class="dl">Прогалина</div><div class="dv" style="color:#dc2626">${c.gap}</div></div>
+      <div class="dcell"><div class="dl">Рекомендація</div><div class="dv" style="color:#065f46">${c.fix}</div></div>
+    </div>`;
+}
+renderCopies();
+</script>
+</body>
+</html>

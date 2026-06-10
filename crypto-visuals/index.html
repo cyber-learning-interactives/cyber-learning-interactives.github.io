@@ -24,7 +24,7 @@ h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
 <body>
 <div class="wrap">
   <h1>Crypto Visuals</h1>
-  <p class="sub">Інтерактивні діаграми до курсу «Криптографія та захист даних». 10 візуалізацій, що доповнюють конспекти і полегшують сприйняття ключових концепцій.</p>
+  <p class="sub">Інтерактивні діаграми до курсу «Криптографія та захист даних». 22 візуалізації, що доповнюють конспекти і полегшують сприйняття ключових концепцій.</p>
 
   <a class="card" href="01-data-journey.html">
     <div class="topic">Тема 1 · Розділ 10</div>
@@ -36,6 +36,12 @@ h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
     <div class="topic">Тема 2 · Розділ 8</div>
     <h2>Defense in Depth</h2>
     <p>6 шарів захисту. Вимкніть шар — побачте, як система деградує.</p>
+  </a>
+
+  <a class="card" href="20-shadow-data.html">
+    <div class="topic">Тема 2 · Розділ 4</div>
+    <h2>Shadow Data Tracer</h2>
+    <p>Одне резюме → 5 тіньових копій у різних місцях. 3 без належного захисту.</p>
   </a>
 
   <a class="card" href="13-control-mapping.html">
@@ -54,6 +60,12 @@ h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
     <div class="topic">Тема 4 · Розділ 7.3</div>
     <h2>Envelope Encryption Flow</h2>
     <p>KMS → KEK → DEK → дані: покрокова анімація дворівневої схеми ключів.</p>
+  </a>
+
+  <a class="card" href="17-avalanche-effect.html">
+    <div class="topic">Тема 4 · Розділ 3.2</div>
+    <h2>AES Avalanche Effect</h2>
+    <p>Змініть 1 біт → побачте, як після кожного раунду AES різниця зростає до ~50%.</p>
   </a>
 
   <a class="card" href="04-tls-handshake.html">
@@ -92,10 +104,22 @@ h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
     <p>IAM policy → Key policy → Condition keys → Grant/Deny: як KMS вирішує.</p>
   </a>
 
+  <a class="card" href="21-key-lifecycle.html">
+    <div class="topic">Тема 10 · Розділ 4</div>
+    <h2>Key Lifecycle</h2>
+    <p>Від генерації до знищення: 7 фаз життєвого циклу ключа і що відбувається з даними.</p>
+  </a>
+
   <a class="card" href="14-algorithm-matrix.html">
     <div class="topic">Тема 8 · Розділ 2</div>
     <h2>Algorithm Decision Matrix</h2>
     <p>Обери задачу → рекомендований алгоритм, альтернатива і чого НЕ використовувати.</p>
+  </a>
+
+  <a class="card" href="19-coverage-map-builder.html">
+    <div class="topic">Тема 8 · Розділ 10</div>
+    <h2>Coverage Map Builder</h2>
+    <p>Робочий інструмент: заповніть карту шифрування для HR AI і побачте прогалини.</p>
   </a>
 
   <a class="card" href="09-nonce-reuse.html">
@@ -104,10 +128,22 @@ h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
     <p>Чому повторення nonce у GCM призводить до повної компрометації.</p>
   </a>
 
+  <a class="card" href="22-crypto-misuse.html">
+    <div class="topic">Тема 11 · Розділ 2</div>
+    <h2>Crypto Misuse Taxonomy</h2>
+    <p>83% помилок — не в алгоритмах. Категорії misuse з CVE та прикладами з HR AI.</p>
+  </a>
+
   <a class="card" href="10-data-multiplication.html">
     <div class="topic">Тема 12 · Розділ 2</div>
     <h2>Data Multiplication Map</h2>
     <p>Як AI-система множить форми одних даних: файл → embedding → промпт → лог.</p>
+  </a>
+
+  <a class="card" href="18-prompt-injection.html">
+    <div class="topic">Тема 12 · Розділ 3</div>
+    <h2>Prompt Injection Anatomy</h2>
+    <p>Покрокова атака: прихований текст у резюме → маніпуляція результатами AI.</p>
   </a>
 
   <a class="card" href="15-attack-surface.html">

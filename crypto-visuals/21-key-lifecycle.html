@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Key Lifecycle — Життєвий цикл ключа</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+.header{text-align:center;max-width:740px;margin-bottom:20px}
+.header h1{font-size:1.45rem;font-weight:700;margin-bottom:6px}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.6}
+.tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#ede9fe;color:#7c5cbf;margin-bottom:10px}
+.wrap{width:100%;max-width:860px}
+
+/* Timeline */
+.timeline{position:relative;padding:0 0 0 40px;margin-bottom:20px}
+.timeline::before{content:'';position:absolute;left:18px;top:0;bottom:0;width:3px;background:#e5e7eb;border-radius:2px}
+
+.phase{position:relative;margin-bottom:16px;cursor:pointer}
+.phase .dot{position:absolute;left:-30px;top:14px;width:18px;height:18px;border-radius:50%;border:3px solid #fff;z-index:1;transition:all .3s}
+.phase.active .dot{transform:scale(1.3);box-shadow:0 0 0 4px var(--glow)}
+
+.phase-card{background:#fff;border:2px solid #e5e7eb;border-radius:12px;padding:14px 18px;transition:all .3s}
+.phase:hover .phase-card{border-color:#7c5cbf}
+.phase.active .phase-card{border-color:var(--c);box-shadow:0 2px 12px var(--glow)}
+.phase-card .p-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.phase-card .p-icon{font-size:1.1rem}
+.phase-card h3{font-size:0.85rem;font-weight:700;flex:1}
+.phase-card .p-time{font-size:0.62rem;font-weight:600;padding:2px 8px;border-radius:6px;background:#f3f4f6;color:#6b7280}
+.phase-card .p-sub{font-size:0.74rem;color:#6b7280;line-height:1.4}
+
+.phase-detail{display:none;margin-top:8px;padding:12px 14px;background:#f9fafb;border-radius:8px;border:1px solid #f3f4f6}
+.phase.active .phase-detail{display:block}
+.phase-detail .pd-row{padding:5px 0;font-size:0.76rem;color:#4b5563;line-height:1.5;border-bottom:1px solid #f3f4f6}
+.phase-detail .pd-row:last-child{border-bottom:none}
+.phase-detail .pd-row strong{color:#1a1a2e}
+.phase-detail code{font-family:'JetBrains Mono',monospace;font-size:0.7rem;background:#ede9fe;padding:1px 5px;border-radius:3px;color:#5b21b6}
+
+.lesson{padding:14px 18px;border-radius:12px;border:1.5px solid #a7f3d0;background:#ecfdf5;font-size:0.8rem;line-height:1.6;color:#065f46}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="tag">ТЕМА 10 · РОЗДІЛ 4</div>
+  <h1>Key Lifecycle</h1>
+  <p>Від генерації до знищення: кожен етап життєвого циклу ключа визначає, які операції доступні і що відбувається з даними. Натисніть на фазу для деталей.</p>
+</div>
+
+<div class="wrap">
+  <div class="timeline" id="timeline"></div>
+  <div class="lesson"><strong>Ключовий принцип:</strong> ротація KEK не потребує перешифрування даних. KMS зберігає всі версії ключа і автоматично обирає правильну при Decrypt. Це робить ротацію операційно безпечною — жоден сервіс не потребує змін у коді.</div>
+</div>
+
+<script>
+const phases=[
+  {icon:'✨',name:'Генерація',time:'День 0',color:'#7c5cbf',glow:'rgba(124,92,191,.15)',
+   sub:'KMS генерує ключовий матеріал через CSPRNG усередині HSM.',
+   details:[
+     {t:'<strong>Де:</strong> AWS KMS (FIPS 140-2 Level 3 HSM). Ключ ніколи не покидає HSM у відкритому вигляді.'},
+     {t:'<strong>Параметри:</strong> AES-256 для symmetric CMK. Key spec: <code>SYMMETRIC_DEFAULT</code>.'},
+     {t:'<strong>Alias:</strong> <code>alias/cv-encryption-key</code> — людиночитабельне ім\'я, яке не змінюється при ротації.'},
+     {t:'<strong>Key policy:</strong> визначає, хто може використовувати ключ. Створюється одночасно з ключем.'},
+   ]},
+  {icon:'🟢',name:'Active (Encrypt + Decrypt)',time:'День 0 → Рік 1',color:'#10b981',glow:'rgba(16,185,129,.15)',
+   sub:'Ключ використовується для шифрування нових даних і дешифрування існуючих.',
+   details:[
+     {t:'<strong>Encrypt:</strong> <code>GenerateDataKey</code> створює DEK, шифрує його поточною версією CMK.'},
+     {t:'<strong>Decrypt:</strong> KMS автоматично визначає версію CMK за metadata encrypted DEK.'},
+     {t:'<strong>Логування:</strong> кожна операція фіксується в CloudTrail (хто, коли, з якої IP, для якого ресурсу).'},
+     {t:'<strong>Моніторинг:</strong> alerting на аномальну кількість Decrypt-операцій або незвичні source IP.'},
+   ]},
+  {icon:'🔄',name:'Ротація',time:'Рік 1 (автоматично)',color:'#3b82f6',glow:'rgba(59,130,246,.15)',
+   sub:'KMS створює нову версію ключового матеріалу. Стара залишається для decrypt.',
+   details:[
+     {t:'<strong>Що змінюється:</strong> новий ключовий матеріал (version 2). CMK ID і alias залишаються ті самі.'},
+     {t:'<strong>Encrypt:</strong> нові <code>GenerateDataKey</code> використовують version 2.'},
+     {t:'<strong>Decrypt:</strong> старі DEK (зашифровані version 1) дешифруються автоматично — KMS зберігає обидві версії.'},
+     {t:'<strong>Для додатків:</strong> ротація повністю прозора. Жодних змін у коді. Alias працює як раніше.'},
+     {t:'<strong>Дані НЕ перешифровуються.</strong> Якщо потрібно — окрема процедура re-encryption (зчитати → зашифрувати новим DEK).'},
+   ]},
+  {icon:'🔄🔄',name:'Повторна ротація',time:'Рік 2, 3, ...',color:'#3b82f6',glow:'rgba(59,130,246,.15)',
+   sub:'Процес повторюється. KMS зберігає всі версії: v1, v2, v3...',
+   details:[
+     {t:'<strong>Кумулятивно:</strong> після 3 років — 3 версії ключа. Всі зберігаються для decrypt legacy даних.'},
+     {t:'<strong>PCI DSS:</strong> вимагає ротацію crypto keys щорічно.'},
+     {t:'<strong>NIST SP 800-57:</strong> рекомендований crypto period для AES — 2 роки для originator usage.'},
+   ]},
+  {icon:'⏸️',name:'Disable',time:'При виведенні з експлуатації',color:'#f59e0b',glow:'rgba(245,158,11,.15)',
+   sub:'Ключ вимкнено. Encrypt і Decrypt неможливі. Можна ввімкнути назад.',
+   details:[
+     {t:'<strong>Ефект:</strong> будь-який запит <code>Encrypt</code> або <code>Decrypt</code> повертає <code>DisabledException</code>.'},
+     {t:'<strong>Дані:</strong> зашифровані дані залишаються, але недоступні до ввімкнення ключа.'},
+     {t:'<strong>Зворотність:</strong> ключ можна ввімкнути назад (<code>EnableKey</code>). Це безпечний перший крок перед видаленням.'},
+     {t:'<strong>Use case:</strong> деактивація системи, підготовка до видалення, реакція на інцидент.'},
+   ]},
+  {icon:'⏳',name:'Pending Deletion',time:'+ 7–30 днів (waiting period)',color:'#ef4444',glow:'rgba(239,68,68,.15)',
+   sub:'Ключ запланований до видалення. Обов\'язковий waiting period.',
+   details:[
+     {t:'<strong>API:</strong> <code>ScheduleKeyDeletion(KeyId, PendingWindowInDays=30)</code>.'},
+     {t:'<strong>Мінімум:</strong> 7 днів (AWS). Рекомендовано: 30 днів.'},
+     {t:'<strong>Зворотність:</strong> протягом waiting period можна скасувати: <code>CancelKeyDeletion</code>.'},
+     {t:'<strong>Monitoring:</strong> CloudTrail фіксує <code>ScheduleKeyDeletion</code>. Alert обов\'язковий.'},
+     {t:'<strong>Чому не миттєво:</strong> захист від помилки або зловмисного адміністратора.'},
+   ]},
+  {icon:'🗑️',name:'Destroyed',time:'Після waiting period',color:'#991b1b',glow:'rgba(153,27,27,.15)',
+   sub:'Ключовий матеріал знищено. Дані назавжди недоступні.',
+   details:[
+     {t:'<strong>Незворотність:</strong> після видалення ключовий матеріал неможливо відновити. Жодним чином.'},
+     {t:'<strong>Дані:</strong> все, що зашифроване цим ключем, стає криптографічно нечитабельним (crypto-shredding).'},
+     {t:'<strong>GDPR Art. 17:</strong> crypto-shredding — прийнятний спосіб реалізації права на видалення.'},
+     {t:'<strong>Бекапи:</strong> якщо бекапи зашифровані тим самим ключем — вони теж стають нечитабельними.'},
+   ]},
+];
+
+let active=0;
+function render(){
+  document.getElementById('timeline').innerHTML=phases.map((p,i)=>{
+    const isActive=i===active;
+    return `<div class="phase ${isActive?'active':''}" style="--c:${p.color};--glow:${p.glow}" onclick="pick(${i})">
+      <div class="dot" style="background:${p.color}"></div>
+      <div class="phase-card">
+        <div class="p-top"><span class="p-icon">${p.icon}</span><h3>${p.name}</h3><span class="p-time">${p.time}</span></div>
+        <div class="p-sub">${p.sub}</div>
+      </div>
+      <div class="phase-detail">${p.details.map(d=>`<div class="pd-row">${d.t}</div>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+function pick(i){active=i;render();}
+render();
+</script>
+</body>
+</html>
