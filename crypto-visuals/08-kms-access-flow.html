@@ -3,214 +3,257 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KMS Access Decision Flow — IAM + Key Policy</title>
+<title>KMS Access Decision Flow — Хто отримає доступ до ключа?</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Inter',system-ui,sans-serif;background:#f8f9fb;color:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
-.header{text-align:center;max-width:720px;margin-bottom:24px}
-.header h1{font-size:1.5rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
-.header p{font-size:0.85rem;color:#6b7280;line-height:1.5}
+.header{text-align:center;max-width:740px;margin-bottom:24px}
+.header h1{font-size:1.45rem;font-weight:700;margin-bottom:6px;letter-spacing:-0.02em}
+.header p{font-size:0.85rem;color:#6b7280;line-height:1.6}
 .tag{display:inline-block;font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:12px;background:#ede9fe;color:#7c5cbf;margin-bottom:10px}
+.wrap{width:100%;max-width:880px}
 
-.wrap{width:100%;max-width:860px}
+/* Scenario cards */
+.scenarios{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:20px}
+.sc{padding:12px 10px;border:2px solid #e5e7eb;border-radius:12px;cursor:pointer;transition:all .2s;text-align:center;background:#fff}
+.sc:hover{border-color:#7c5cbf;background:#faf5ff}
+.sc.on{border-color:var(--c);background:var(--bg);box-shadow:0 2px 10px var(--glow)}
+.sc .sc-icon{font-size:1.2rem;margin-bottom:4px}
+.sc .sc-title{font-size:0.7rem;font-weight:700;line-height:1.2;margin-bottom:2px}
+.sc .sc-sub{font-size:0.6rem;color:#6b7280;line-height:1.2}
 
-/* Config panel */
-.config{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:20px;margin-bottom:16px}
-.config h3{font-size:0.85rem;font-weight:700;margin-bottom:12px}
-.config-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.cfg{display:flex;flex-direction:column;gap:4px}
-.cfg label{font-size:0.68rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em}
-.cfg select{padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-family:inherit;font-size:0.78rem;font-weight:500;cursor:pointer;background:#fff;appearance:auto}
-.cfg select:focus{border-color:#7c5cbf;outline:none}
+/* Main panel */
+.panel{background:#fff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden}
 
-/* Decision flow */
-.flow{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:8px}
+/* Story header */
+.story{padding:18px 22px;border-bottom:1px solid #e5e7eb}
+.story h3{font-size:0.92rem;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.story p{font-size:0.8rem;color:#4b5563;line-height:1.5}
+.story .context{margin-top:8px;padding:8px 12px;background:#f9fafb;border-radius:8px;font-size:0.72rem;color:#6b7280;font-family:'JetBrains Mono',monospace}
 
-.gate{width:100%;max-width:480px;padding:14px 18px;border-radius:12px;border:2px solid;display:flex;align-items:center;gap:12px;transition:all .4s}
-.gate .g-icon{font-size:1.3rem;flex-shrink:0}
-.gate .g-body{flex:1}
-.gate .g-title{font-size:0.82rem;font-weight:700}
-.gate .g-detail{font-size:0.7rem;margin-top:2px}
-.gate .g-result{font-size:0.75rem;font-weight:700;padding:4px 12px;border-radius:8px;flex-shrink:0}
-
+/* Gates */
+.gates{padding:16px 22px;display:flex;flex-direction:column;gap:10px}
+.gate{padding:14px 16px;border-radius:12px;border:2px solid;transition:all .4s}
 .gate.pass{border-color:#10b981;background:#ecfdf5}
-.gate.pass .g-result{background:#d1fae5;color:#065f46}
 .gate.fail{border-color:#ef4444;background:#fef2f2}
-.gate.fail .g-result{background:#fecaca;color:#991b1b}
-.gate.skip{border-color:#d1d5db;background:#f9fafb;opacity:0.5}
-.gate.skip .g-result{background:#f3f4f6;color:#9ca3af}
+.gate.skip{border-color:#e5e7eb;background:#f9fafb;opacity:0.4}
+.gate-top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.gate-icon{font-size:1.1rem;flex-shrink:0}
+.gate-name{font-size:0.78rem;font-weight:700;flex:1}
+.gate-result{font-size:0.72rem;font-weight:700;padding:3px 10px;border-radius:8px}
+.gate.pass .gate-result{background:#d1fae5;color:#065f46}
+.gate.fail .gate-result{background:#fecaca;color:#991b1b}
+.gate.skip .gate-result{background:#f3f4f6;color:#9ca3af}
+.gate-body{font-size:0.75rem;color:#4b5563;line-height:1.5}
+.gate-body code{font-family:'JetBrains Mono',monospace;font-size:0.7rem;background:rgba(0,0,0,.05);padding:1px 5px;border-radius:3px}
+.gate-body strong{color:#1a1a2e}
 
-.gate-arrow{font-size:1.2rem;color:#d1d5db}
+/* Final */
+.final{padding:18px 22px;border-top:1px solid #e5e7eb;display:flex;align-items:center;gap:14px;transition:all .4s}
+.final.granted{background:#ecfdf5}
+.final.denied{background:#fef2f2}
+.final-badge{font-size:1.3rem;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.final.granted .final-badge{background:#d1fae5}
+.final.denied .final-badge{background:#fecaca}
+.final-text h4{font-size:0.88rem;font-weight:700;margin-bottom:3px}
+.final.granted h4{color:#065f46}
+.final.denied h4{color:#991b1b}
+.final-text p{font-size:0.76rem;color:#4b5563;line-height:1.5}
 
-/* Final result */
-.final{width:100%;max-width:480px;padding:18px;border-radius:14px;text-align:center;border:2px solid;transition:all .4s}
-.final h3{font-size:1rem;font-weight:700;margin-bottom:4px}
-.final p{font-size:0.78rem}
-.final.granted{border-color:#10b981;background:#ecfdf5;color:#065f46}
-.final.denied{border-color:#ef4444;background:#fef2f2;color:#991b1b}
+/* Lesson */
+.lesson{margin-top:16px;padding:14px 18px;border-radius:12px;border:1.5px solid;font-size:0.8rem;line-height:1.6}
+.lesson strong{color:inherit}
+.lesson.green{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+.lesson.red{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+.lesson.amber{background:#fffbeb;border-color:#fde68a;color:#92400e}
 
-.explain{margin-top:16px;padding:14px 16px;background:#f9fafb;border:1px solid #f3f4f6;border-radius:10px;font-size:0.78rem;color:#4b5563;line-height:1.6}
-.explain strong{color:#1a1a2e}
+@media(max-width:640px){.scenarios{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
 
 <div class="header">
   <div class="tag">ТЕМА 10 · РОЗДІЛ 3</div>
-  <h1>KMS Access Decision Flow</h1>
-  <p>Доступ до ключа визначається двома незалежними рівнями: IAM policy і Key policy. Змініть параметри, щоб побачити, як рішення змінюється.</p>
+  <h1>KMS: хто отримає доступ до ключа?</h1>
+  <p>Доступ до криптографічного ключа в KMS перевіряється на трьох рівнях. Навіть правильні облікові дані не гарантують доступ — контекст і політики ключа можуть заблокувати запит. Оберіть сценарій із HR AI-системи.</p>
 </div>
 
 <div class="wrap">
-  <div class="config">
-    <h3>⚙️ Параметри запиту</h3>
-    <div class="config-grid">
-      <div class="cfg">
-        <label>Хто (сервіс)</label>
-        <select id="who" onchange="evaluate()">
-          <option value="inference">Inference Service</option>
-          <option value="analytics">Analytics Service</option>
-          <option value="admin">Admin User</option>
-          <option value="unknown">Невідомий сервіс</option>
-        </select>
-      </div>
-      <div class="cfg">
-        <label>Операція</label>
-        <select id="action" onchange="evaluate()">
-          <option value="decrypt">kms:Decrypt</option>
-          <option value="encrypt">kms:Encrypt</option>
-          <option value="delete">kms:ScheduleKeyDeletion</option>
-        </select>
-      </div>
-      <div class="cfg">
-        <label>Звідки</label>
-        <select id="where" onchange="evaluate()">
-          <option value="internet">Інтернет</option>
-          <option value="vpc">VPC (внутрішня мережа)</option>
-        </select>
-      </div>
-    </div>
-  </div>
-
-  <div class="flow" id="flow"></div>
-  <div class="explain" id="explain"></div>
+  <div class="scenarios" id="scenarios"></div>
+  <div class="panel" id="panel"></div>
+  <div id="lesson"></div>
 </div>
 
 <script>
-// Rules matrix
-const iamRules = {
-  inference: { decrypt: true, encrypt: true, delete: false },
-  analytics: { decrypt: false, encrypt: false, delete: false },
-  admin: { decrypt: true, encrypt: true, delete: true },
-  unknown: { decrypt: false, encrypt: false, delete: false },
-};
-const keyPolicyRules = {
-  inference: { decrypt: true, encrypt: true, delete: false },
-  analytics: { decrypt: true, encrypt: false, delete: false },
-  admin: { decrypt: true, encrypt: true, delete: true },
-  unknown: { decrypt: false, encrypt: false, delete: false },
-};
-// Condition: only VPC for decrypt
-const conditionPass = (action, where) => {
-  if (action === 'decrypt' && where === 'internet') return false;
-  return true;
-};
+const scenarios = [
+  {
+    id: 'normal',
+    icon: '🤖',
+    title: 'Inference читає CV',
+    sub: 'Штатна робота',
+    color: '#10b981', bg: '#ecfdf5', glow: 'rgba(16,185,129,.15)',
+    storyIcon: '🤖',
+    storyTitle: 'Inference Service дешифрує резюме для аналізу',
+    storyText: 'Сервіс обробки резюме отримує запит від рекрутера. Щоб проаналізувати CV, він повинен дешифрувати файл з S3. Для цього потрібен DEK, а DEK зашифрований KEK у KMS.',
+    context: 'kms:Decrypt → ключ cv-encrypton-key → з VPC endpoint',
+    gates: [
+      { pass: true, name: 'Рівень 1: IAM Policy', body: 'Роль <code>inference-role</code> має дозвіл <code>kms:Decrypt</code> для ресурсу <code>arn:aws:kms:…/cv-key</code>. Ця роль призначена тільки inference-подам.' },
+      { pass: true, name: 'Рівень 2: Key Policy', body: 'Політика ключа <code>cv-encryption-key</code> явно дозволяє <code>kms:Decrypt</code> для <code>inference-role</code>. Інші ролі (analytics, logging) у цій політиці відсутні.' },
+      { pass: true, name: 'Рівень 3: Condition Keys', body: 'Умова <code>aws:SourceVpce</code> виконана: запит надходить з VPC endpoint внутрішньої мережі, а не з інтернету.' },
+    ],
+    granted: true,
+    finalTitle: '✓ Доступ надано',
+    finalText: 'KMS повертає розшифрований DEK. Inference Service дешифрує один CV-файл, після чого plaintext DEK видаляється з пам\'яті. Операція записана в CloudTrail.',
+    lessonClass: 'green',
+    lesson: '<strong>Штатний процес:</strong> три рівні пропустили запит, тому що сервіс має правильну роль, ключ дозволяє цю операцію, і контекст відповідає вимогам. Кожна така операція логується — при інциденті можна встановити, хто дешифрував які файли.'
+  },
+  {
+    id: 'analytics',
+    icon: '📊',
+    title: 'Analytics хоче CV',
+    sub: 'IAM блокує',
+    color: '#ef4444', bg: '#fef2f2', glow: 'rgba(239,68,68,.15)',
+    storyIcon: '📊',
+    storyTitle: 'Analytics Service намагається прочитати резюме',
+    storyText: 'Команда аналітики хоче побудувати звіт за навичками кандидатів. Сервіс аналітики має доступ до S3-бакету з CV (для читання метаданих), але не повинен мати доступ до самих файлів.',
+    context: 'kms:Decrypt → ключ cv-encryption-key → з VPC endpoint',
+    gates: [
+      { pass: false, name: 'Рівень 1: IAM Policy', body: 'Роль <code>analytics-role</code> <strong>не має</strong> дозволу <code>kms:Decrypt</code>. У її IAM-політиці є тільки <code>s3:GetObject</code> для агрегованих таблиць і <code>athena:StartQueryExecution</code>.' },
+      { pass: null, name: 'Рівень 2: Key Policy', body: 'Не досягнуто — запит зупинився на IAM.' },
+      { pass: null, name: 'Рівень 3: Condition Keys', body: 'Не досягнуто.' },
+    ],
+    granted: false,
+    finalTitle: '✗ Доступ відхилено',
+    finalText: 'Analytics Service отримує зашифрований файл з S3, але KMS відмовляє в дешифруванні DEK. Дані залишаються нечитабельними. Навіть повний доступ до S3-бакету не дозволяє прочитати файли без kms:Decrypt.',
+    lessonClass: 'red',
+    lesson: '<strong>Ключовий принцип:</strong> доступ до сховища ≠ доступ до даних. Шифрування через KMS створює другий бар\'єр: навіть якщо сервіс «бачить» файл, він не може його прочитати без дозволу на дешифрування. Саме це відрізняє envelope encryption від простого шифрування диска.'
+  },
+  {
+    id: 'stolen',
+    icon: '🏴‍☠️',
+    title: 'Викрадені credentials',
+    sub: 'Condition блокує',
+    color: '#f59e0b', bg: '#fffbeb', glow: 'rgba(245,158,11,.15)',
+    storyIcon: '🏴‍☠️',
+    storyTitle: 'Зловмисник використовує викрадені IAM-credentials',
+    storyText: 'Зловмисник отримав access key та secret key inference-role (наприклад, з витоку змінних середовища). Він намагається дешифрувати резюме зі свого комп\'ютера через AWS CLI.',
+    context: 'kms:Decrypt → ключ cv-encryption-key → з інтернету (IP: 185.x.x.x)',
+    gates: [
+      { pass: true, name: 'Рівень 1: IAM Policy', body: 'Credentials валідні: <code>inference-role</code> справді має <code>kms:Decrypt</code>. IAM не знає, що credentials викрадені — вони технічно коректні.' },
+      { pass: true, name: 'Рівень 2: Key Policy', body: 'Key policy дозволяє <code>kms:Decrypt</code> для <code>inference-role</code>. На цьому рівні теж немає причин для відмови.' },
+      { pass: false, name: 'Рівень 3: Condition Keys', body: 'Умова <code>aws:SourceVpce</code> <strong>не виконана</strong>: запит надходить з IP <code>185.x.x.x</code> (інтернет), а policy вимагає запит через VPC endpoint. <strong>Навіть з правильними credentials — доступ заблоковано.</strong>' },
+    ],
+    granted: false,
+    finalTitle: '✗ Доступ відхилено',
+    finalText: 'Зловмисник має правильні credentials, але не може їх використати поза контрольованим середовищем. Аномальний запит з незнайомої IP-адреси фіксується в CloudTrail і може бути виявлений через моніторинг.',
+    lessonClass: 'amber',
+    lesson: '<strong>Condition Keys — останній рубіж:</strong> навіть коли перші два рівні пройдені, контекстні обмеження зупиняють атаку. Це захист від реального сценарію: витік credentials трапляється (GitHub щороку фіксує мільйони секретів у публічних репозиторіях). Condition keys обмежують шкоду.'
+  },
+  {
+    id: 'crosspolicy',
+    icon: '🔑',
+    title: 'IAM є, Key Policy немає',
+    sub: 'Defense in depth',
+    color: '#7c5cbf', bg: '#ede9fe', glow: 'rgba(124,92,191,.15)',
+    storyIcon: '🔑',
+    storyTitle: 'Новий сервіс із IAM, але без запису в Key Policy',
+    storyText: 'DevOps-команда створила новий мікросервіс для експорту даних і дала йому IAM-роль з kms:Decrypt. Але забула додати цю роль до key policy ключа. Це типова ситуація: дві команди відповідають за різні рівні.',
+    context: 'kms:Decrypt → ключ cv-encryption-key → з VPC endpoint',
+    gates: [
+      { pass: true, name: 'Рівень 1: IAM Policy', body: 'Роль <code>export-role</code> має <code>kms:Decrypt</code> в IAM — DevOps команда додала це при створенні ролі.' },
+      { pass: false, name: 'Рівень 2: Key Policy', body: 'Політика ключа <code>cv-encryption-key</code> <strong>не містить</strong> <code>export-role</code> у списку дозволених. Key policy управляється Security-командою, яка не знає про новий сервіс.' },
+      { pass: null, name: 'Рівень 3: Condition Keys', body: 'Не досягнуто.' },
+    ],
+    granted: false,
+    finalTitle: '✗ Доступ відхилено',
+    finalText: 'Сервіс не може дешифрувати дані, хоча IAM-дозвіл є. Security-команда повинна явно додати новий сервіс до key policy після review.',
+    lessonClass: 'amber',
+    lesson: '<strong>Defense in depth на практиці:</strong> помилка на одному рівні (занадто широкий IAM) не призводить до компрометації, якщо другий рівень (key policy) обмежений правильно. Це дозволяє розділити відповідальність: DevOps управляє IAM-ролями, Security — key policies.'
+  },
+  {
+    id: 'delete',
+    icon: '💣',
+    title: 'Видалення ключа',
+    sub: 'Максимальний ризик',
+    color: '#dc2626', bg: '#fef2f2', glow: 'rgba(220,38,38,.15)',
+    storyIcon: '💣',
+    storyTitle: 'Адміністратор намагається видалити ключ шифрування',
+    storyText: 'Адміністратор хоче видалити CMK, яким зашифровані всі CV-файли. Це незворотна операція — після видалення ключа всі дані назавжди стають нечитабельними.',
+    context: 'kms:ScheduleKeyDeletion → ключ cv-encryption-key → з VPC',
+    gates: [
+      { pass: true, name: 'Рівень 1: IAM Policy', body: 'Admin-роль має <code>kms:ScheduleKeyDeletion</code> — це привілейована операція, доступна лише адміністраторам.' },
+      { pass: true, name: 'Рівень 2: Key Policy', body: 'Key policy дозволяє deletion тільки для admin-ролі. Жоден сервісний акаунт не має цього дозволу.' },
+      { pass: true, name: 'Рівень 3: Condition Keys', body: 'Запит з VPC, умови виконані. KMS приймає запит.' },
+    ],
+    granted: true,
+    finalTitle: '⚠ Доступ надано — з waiting period',
+    finalText: 'KMS НЕ видаляє ключ негайно. Включається обов\'язковий waiting period (7–30 днів). Протягом цього часу видалення можна скасувати. Це захист від помилки або зловмисного адміністратора. У CloudTrail фіксується, хто ініціював видалення.',
+    lessonClass: 'red',
+    lesson: '<strong>Навіть після трьох рівнів дозволу KMS додає захист:</strong> waiting period запобігає миттєвій втраті даних. Це одна з причин, чому централізоване управління ключами через KMS критично важливе — жоден інший підхід (файл, змінна середовища) не дає такого рівня контролю над видаленням.'
+  },
+];
 
-const names = {
-  inference: 'Inference Service',
-  analytics: 'Analytics Service',
-  admin: 'Admin User',
-  unknown: 'Невідомий сервіс'
-};
-const actionNames = {
-  decrypt: 'kms:Decrypt',
-  encrypt: 'kms:Encrypt',
-  delete: 'kms:ScheduleKeyDeletion'
-};
+let cur = 'stolen'; // start with the most interesting one
 
-function evaluate() {
-  const who = document.getElementById('who').value;
-  const action = document.getElementById('action').value;
-  const where = document.getElementById('where').value;
-
-  const iam = iamRules[who]?.[action] ?? false;
-  const kp = keyPolicyRules[who]?.[action] ?? false;
-  const cond = conditionPass(action, where);
-
-  // All three must pass
-  const iamFailed = !iam;
-  const kpFailed = !kp;
-  const condFailed = !cond;
-  const stopped = iamFailed || kpFailed || condFailed;
-  const granted = !stopped;
-
-  let html = '';
-
-  // Gate 1: IAM
-  const iamCls = iamFailed ? 'fail' : (stopped && !iamFailed ? 'pass' : 'pass');
-  html += `<div class="gate ${iam ? 'pass' : 'fail'}">
-    <div class="g-icon">🛡️</div>
-    <div class="g-body">
-      <div class="g-title">Рівень 1: IAM Policy</div>
-      <div class="g-detail">Чи має <strong>${names[who]}</strong> дозвіл <code>${actionNames[action]}</code>?</div>
-    </div>
-    <div class="g-result">${iam ? '✓ Allow' : '✗ Deny'}</div>
-  </div>`;
-
-  html += `<div class="gate-arrow">${iamFailed ? '🚫' : '↓'}</div>`;
-
-  // Gate 2: Key Policy
-  const kpActive = !iamFailed;
-  html += `<div class="gate ${!kpActive ? 'skip' : (kp ? 'pass' : 'fail')}">
-    <div class="g-icon">🔑</div>
-    <div class="g-body">
-      <div class="g-title">Рівень 2: Key Policy</div>
-      <div class="g-detail">${kpActive ? `Чи дозволяє policy ключа цю операцію для <strong>${names[who]}</strong>?` : 'Не досягнуто — зупинено на IAM'}</div>
-    </div>
-    <div class="g-result">${!kpActive ? '—' : (kp ? '✓ Allow' : '✗ Deny')}</div>
-  </div>`;
-
-  html += `<div class="gate-arrow">${(iamFailed || kpFailed) ? '🚫' : '↓'}</div>`;
-
-  // Gate 3: Condition Keys
-  const condActive = !iamFailed && !kpFailed;
-  html += `<div class="gate ${!condActive ? 'skip' : (cond ? 'pass' : 'fail')}">
-    <div class="g-icon">🌐</div>
-    <div class="g-body">
-      <div class="g-title">Рівень 3: Condition Keys</div>
-      <div class="g-detail">${condActive ? `Запит з <strong>${where === 'vpc' ? 'VPC (внутрішня мережа)' : 'інтернету'}</strong>. ${action === 'decrypt' ? 'Decrypt дозволено лише з VPC.' : 'Немає обмежень за контекстом.'}` : 'Не досягнуто — зупинено раніше'}</div>
-    </div>
-    <div class="g-result">${!condActive ? '—' : (cond ? '✓ Pass' : '✗ Blocked')}</div>
-  </div>`;
-
-  html += `<div class="gate-arrow">↓</div>`;
-
-  // Final
-  html += `<div class="final ${granted ? 'granted' : 'denied'}">
-    <h3>${granted ? '✓ GRANTED' : '✗ DENIED'}</h3>
-    <p>${granted 
-      ? `${names[who]} може виконати ${actionNames[action]}` 
-      : `${names[who]} не може виконати ${actionNames[action]}`}</p>
-  </div>`;
-
-  document.getElementById('flow').innerHTML = html;
-
-  // Explanation
-  let exp = '';
-  if (iamFailed) {
-    exp = `<strong>Зупинено на IAM:</strong> ${names[who]} не має дозволу <code>${actionNames[action]}</code> в IAM policy. Навіть якщо key policy дозволяє — IAM блокує запит. Два рівні працюють за принципом AND: обидва мають дозволити.`;
-  } else if (kpFailed) {
-    exp = `<strong>IAM дозволяє, але Key Policy блокує:</strong> ${names[who]} має IAM-дозвіл, але policy самого ключа не дозволяє цю операцію. Це демонструє defense in depth — помилка на одному рівні не призводить до компрометації.`;
-  } else if (condFailed) {
-    exp = `<strong>IAM і Key Policy дозволяють, але Condition Key блокує:</strong> Decrypt дозволено лише з VPC endpoint. Запит з інтернету відхилений, навіть з правильними обліковими даними. Це захищає від сценарію, коли зловмисник викрадає IAM-credentials і використовує їх поза контрольованим середовищем.`;
-  } else {
-    exp = `<strong>Усі три рівні дозволили.</strong> IAM підтвердив права сервісу, Key Policy підтвердив дозвіл для цього ключа, Condition Key підтвердив контекст запиту. Кожна така операція записується в audit log (CloudTrail).`;
-  }
-  document.getElementById('explain').innerHTML = exp;
+function renderScenarios() {
+  document.getElementById('scenarios').innerHTML = scenarios.map(s =>
+    `<div class="sc ${s.id===cur?'on':''}" style="--c:${s.color};--bg:${s.bg};--glow:${s.glow}" onclick="pick('${s.id}')">
+      <div class="sc-icon">${s.icon}</div>
+      <div class="sc-title">${s.title}</div>
+      <div class="sc-sub">${s.sub}</div>
+    </div>`
+  ).join('');
 }
 
-evaluate();
+function renderPanel() {
+  const s = scenarios.find(x => x.id === cur);
+  let html = '';
+
+  // Story
+  html += `<div class="story">
+    <h3><span>${s.storyIcon}</span> ${s.storyTitle}</h3>
+    <p>${s.storyText}</p>
+    <div class="context">${s.context}</div>
+  </div>`;
+
+  // Gates
+  html += '<div class="gates">';
+  s.gates.forEach(g => {
+    const cls = g.pass === true ? 'pass' : g.pass === false ? 'fail' : 'skip';
+    const res = g.pass === true ? '✓ Дозволено' : g.pass === false ? '✗ Відхилено' : '— Не досягнуто';
+    html += `<div class="gate ${cls}">
+      <div class="gate-top">
+        <span class="gate-icon">${g.pass===true?'🟢':g.pass===false?'🔴':'⚪'}</span>
+        <span class="gate-name">${g.name}</span>
+        <span class="gate-result">${res}</span>
+      </div>
+      <div class="gate-body">${g.body}</div>
+    </div>`;
+  });
+  html += '</div>';
+
+  // Final
+  html += `<div class="final ${s.granted?'granted':'denied'}">
+    <div class="final-badge">${s.granted?'🔓':'🔒'}</div>
+    <div class="final-text">
+      <h4>${s.finalTitle}</h4>
+      <p>${s.finalText}</p>
+    </div>
+  </div>`;
+
+  document.getElementById('panel').innerHTML = html;
+  document.getElementById('lesson').innerHTML = `<div class="lesson ${s.lessonClass}">${s.lesson}</div>`;
+}
+
+function pick(id) {
+  cur = id;
+  renderScenarios();
+  renderPanel();
+}
+
+renderScenarios();
+renderPanel();
 </script>
 </body>
 </html>
